@@ -82,16 +82,35 @@ export type ExportFormat = "csv" | "pdf" | "excel" | "word";
 
 /**
  * Format milliseconds to human-readable time
+ * - Under 1 second: "850 ms"
+ * - 1-60 seconds: "3.2 seconds"
+ * - Over 60 seconds: "2.3 minutes"
  */
 export function formatResponseTime(ms: number): string {
+  if (ms < 1000) {
+    return `${Math.round(ms)} ms`;
+  } else if (ms < 60000) {
+    const seconds = ms / 1000;
+    return `${seconds.toFixed(1)} seconds`;
+  } else {
+    const minutes = ms / 60000;
+    return `${minutes.toFixed(1)} minutes`;
+  }
+}
+
+/**
+ * Format milliseconds to compact human-readable time (for tight spaces)
+ * - Under 1 second: "850ms"
+ * - 1-60 seconds: "3.2s"
+ * - Over 60 seconds: "2.3m"
+ */
+export function formatResponseTimeCompact(ms: number): string {
   if (ms < 1000) {
     return `${Math.round(ms)}ms`;
   } else if (ms < 60000) {
     return `${(ms / 1000).toFixed(1)}s`;
   } else {
-    const minutes = Math.floor(ms / 60000);
-    const seconds = Math.round((ms % 60000) / 1000);
-    return `${minutes}m ${seconds}s`;
+    return `${(ms / 60000).toFixed(1)}m`;
   }
 }
 

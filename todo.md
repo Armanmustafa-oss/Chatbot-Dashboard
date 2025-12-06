@@ -205,3 +205,45 @@
 - [x] All category badges become navigation links
 - [x] All student identifiers become navigation links
 - [x] All message IDs become navigation links
+
+## Phase 6: Critical Refinements
+
+### Responsive Layout Fixes
+- [x] Fix modal overlays to use max-height: 90vh instead of fixed pixel heights
+- [x] Implement internal scrolling for modal bodies
+- [x] Add sticky headers and footers within scrollable modals
+- [x] Ensure action buttons (download, view history) always visible
+- [ ] Test on 13-inch laptop screens at 100% zoom
+- [ ] Viewport-aware positioning for dropdowns and menus
+
+### Messages Page Redesign - Eliminate Sidebar
+- [x] Remove left filter sidebar entirely
+- [x] Create top-aligned filter boxes matching Analytics/Students pattern
+- [x] Sentiment filter box with icons and counts (positive/neutral/negative)
+- [x] Category filter box with clickable chips and counts
+- [x] Response time filter box with preset ranges (instant/fast/moderate/slow)
+- [x] Date range filter box with same dual-calendar picker
+- [x] Applied filters summary bar with removable tags
+- [x] Clear all filters link
+- [x] Full-width message list after filters
+
+### Time Display Standardization
+- [x] Create universal time formatting utility function
+- [x] Convert milliseconds to human-readable seconds/minutes
+- [x] Under 1 second: display as "850 ms"
+- [x] 1-60 seconds: display as "3.2 seconds"
+- [x] Over 60 seconds: display as "2.3 minutes"
+- [x] Apply to all pages: Analytics, Messages, Students, ROI
+
+### ROI Page Strategic Transformation
+- [x] Executive Summary section with value proposition
+- [x] Section 1: Eliminating Siloed Data and Manual Reporting
+- [x] Section 2: Real-Time Visibility for Proactive Management
+- [x] Section 3: Quantifying Operational Efficiency (self-service rate, cost savings)
+- [x] Section 4: Compliance, Quality Control, and Accountability
+- [x] Section 5: Adoption Success and Change Management metrics
+- [x] Section 6: Strategic Recommendations with implementation roadmaps
+- [x] Interactive cost savings calculator with adjustable assumptions
+- [x] Comparative visualizations (bot vs human performance)
+- [x] Strategic recommendations engine with prioritized suggestions
+- [x] Exportable reports (Executive ROI, Quarterly, Budget Justification)

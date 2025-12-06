@@ -3,7 +3,6 @@ import { DateRangePicker, DateRange } from "@/components/DateRangePicker";
 import { NeuCard } from "@/components/NeuCard";
 import { StudentLink, CategoryLink } from "@/components/StudentLink";
 import { Button } from "@/components/ui/button";
-import { Checkbox } from "@/components/ui/checkbox";
 import {
   Dialog,
   DialogContent,
@@ -25,18 +24,20 @@ import {
   Clock,
   Download,
   ExternalLink,
-  Filter,
   History,
   MessageSquare,
-  Phone,
   Search,
-  Star,
   ThumbsDown,
   ThumbsUp,
   User,
   X,
+  Zap,
+  CheckCircle,
+  AlertCircle,
+  XCircle,
+  Folder,
 } from "lucide-react";
-import { useState, useMemo, useEffect } from "react";
+import { useState, useMemo } from "react";
 import { useLocation, useSearch } from "wouter";
 import { toast } from "sonner";
 
@@ -51,11 +52,9 @@ export default function Messages() {
   const [categoryFilter, setCategoryFilter] = useState<string>(navParams.category || "all");
   const [ratingFilter, setRatingFilter] = useState<string>("all");
   const [responseTimeFilter, setResponseTimeFilter] = useState<string>("all");
-  const [timePeriodFilter, setTimePeriodFilter] = useState<string | null>(null);
   const [searchQuery, setSearchQuery] = useState("");
   const [page, setPage] = useState(0);
   const [showConversationHistory, setShowConversationHistory] = useState(false);
-  const [mobileFiltersOpen, setMobileFiltersOpen] = useState(false);
   const [dateRange, setDateRange] = useState<DateRange>({
     from: navParams.from || new Date(Date.now() - 30 * 24 * 60 * 60 * 1000),
     to: navParams.to || new Date(),
@@ -68,7 +67,7 @@ export default function Messages() {
                           navParams.source === "students" ? "Students" : null;
 
   // Fetch messages with filters
-  const { data, isLoading, refetch } = trpc.messages.list.useQuery({
+  const { data, isLoading } = trpc.messages.list.useQuery({
     sentiment: sentimentFilter === "all" ? undefined : sentimentFilter as 'positive' | 'neutral' | 'negative',
     category: categoryFilter === "all" ? undefined : categoryFilter,
     startDate: dateRange.from,
@@ -76,9 +75,6 @@ export default function Messages() {
     limit,
     offset: page * limit,
   });
-
-  // Fetch categories for filter dropdown
-  const { data: categories } = trpc.analytics.getTopQueries.useQuery({ limit: 50 });
 
   // Fetch message detail
   const { data: messageDetail, isLoading: isLoadingDetail } = trpc.messages.getById.useQuery(
@@ -99,7 +95,29 @@ export default function Messages() {
   const total = data?.total || 0;
   const totalPages = Math.ceil(total / limit);
 
-  // Filter messages by search query, rating, response time, and time period
+  // Calculate sentiment counts from messages
+  const sentimentCounts = useMemo(() => {
+    const counts = { positive: 0, neutral: 0, negative: 0, all: total };
+    messages.forEach((m) => {
+      if (m.sentiment === "positive") counts.positive++;
+      else if (m.sentiment === "negative") counts.negative++;
+      else counts.neutral++;
+    });
+    return counts;
+  }, [messages, total]);
+
+  // Unique categories from data
+  const uniqueCategories = useMemo(() => {
+    const catMap = new Map<string, number>();
+    messages.forEach((m) => {
+      if (m.category) {
+        catMap.set(m.category, (catMap.get(m.category) || 0) + 1);
+      }
+    });
+    return Array.from(catMap.entries()).sort((a, b) => b[1] - a[1]);
+  }, [messages]);
+
+  // Filter messages by search query, rating, response time
   const filteredMessages = useMemo(() => {
     let filtered = messages;
 
@@ -125,13 +143,13 @@ export default function Messages() {
       filtered = filtered.filter((m) => {
         if (!m.responseTimeMs) return false;
         switch (responseTimeFilter) {
-          case "under2s":
-            return m.responseTimeMs < 2000;
-          case "2to5s":
-            return m.responseTimeMs >= 2000 && m.responseTimeMs < 5000;
-          case "5to10s":
-            return m.responseTimeMs >= 5000 && m.responseTimeMs < 10000;
-          case "over10s":
+          case "instant":
+            return m.responseTimeMs < 1000;
+          case "fast":
+            return m.responseTimeMs >= 1000 && m.responseTimeMs < 3000;
+          case "moderate":
+            return m.responseTimeMs >= 3000 && m.responseTimeMs < 10000;
+          case "slow":
             return m.responseTimeMs >= 10000;
           default:
             return true;
@@ -139,27 +157,8 @@ export default function Messages() {
       });
     }
 
-    // Time period filter
-    if (timePeriodFilter) {
-      filtered = filtered.filter((m) => {
-        const hour = new Date(m.createdAt).getHours();
-        switch (timePeriodFilter) {
-          case "morning":
-            return hour >= 6 && hour < 12;
-          case "afternoon":
-            return hour >= 12 && hour < 18;
-          case "evening":
-            return hour >= 18 && hour < 24;
-          case "overnight":
-            return hour >= 0 && hour < 6;
-          default:
-            return true;
-        }
-      });
-    }
-
     return filtered;
-  }, [messages, searchQuery, ratingFilter, responseTimeFilter, timePeriodFilter]);
+  }, [messages, searchQuery, ratingFilter, responseTimeFilter]);
 
   // Student's conversation history
   const studentConversations = useMemo(() => {
@@ -180,17 +179,6 @@ export default function Messages() {
     }
   };
 
-  const getSentimentColor = (sentiment: string | null) => {
-    switch (sentiment) {
-      case "positive":
-        return "bg-green-100 text-green-700 border-green-200 dark:bg-green-950 dark:text-green-300 dark:border-green-800";
-      case "negative":
-        return "bg-red-100 text-red-700 border-red-200 dark:bg-red-950 dark:text-red-300 dark:border-red-800";
-      default:
-        return "bg-gray-100 text-gray-700 border-gray-200 dark:bg-gray-800 dark:text-gray-300 dark:border-gray-700";
-    }
-  };
-
   const formatDate = (date: Date | string) => {
     const d = new Date(date);
     return d.toLocaleDateString("en-US", {
@@ -206,7 +194,6 @@ export default function Messages() {
     categoryFilter !== "all",
     ratingFilter !== "all",
     responseTimeFilter !== "all",
-    timePeriodFilter !== null,
   ].filter(Boolean).length;
 
   const clearAllFilters = () => {
@@ -214,7 +201,6 @@ export default function Messages() {
     setCategoryFilter("all");
     setRatingFilter("all");
     setResponseTimeFilter("all");
-    setTimePeriodFilter(null);
     setSearchQuery("");
   };
 
@@ -242,479 +228,446 @@ export default function Messages() {
     toast.success("Messages exported successfully");
   };
 
-  // Unique categories from data
-  const uniqueCategories = useMemo(() => {
-    const cats = new Set<string>();
-    messages.forEach((m) => {
-      if (m.category) cats.add(m.category);
-    });
-    return Array.from(cats).sort();
-  }, [messages]);
+  return (
+    <DashboardLayout>
+      <div className="space-y-6">
+        {/* Navigation Context Breadcrumb */}
+        {hasNavigationContext && sourcePageLabel && (
+          <div className="flex items-center gap-2 p-3 bg-primary/5 rounded-lg">
+            <Button
+              variant="ghost"
+              size="sm"
+              onClick={() => navigate(`/${navParams.source}`)}
+              className="gap-2"
+            >
+              <ArrowLeft className="h-4 w-4" />
+              Back to {sourcePageLabel}
+            </Button>
+            <Separator orientation="vertical" className="h-4" />
+            <span className="text-sm text-muted-foreground">
+              Viewing messages from {formatDateRangeForBreadcrumb(dateRange.from, dateRange.to)}
+            </span>
+          </div>
+        )}
 
-  // Filter sidebar component
-  const FilterSidebar = ({ className }: { className?: string }) => (
-    <div className={cn("space-y-6", className)}>
-      {/* Search */}
-      <div>
-        <label className="text-sm font-semibold text-foreground mb-2 block">Search</label>
-        <div className="relative">
+        {/* Header */}
+        <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
+          <div>
+            <h1 className="text-2xl sm:text-3xl font-extrabold text-foreground tracking-tight">Messages</h1>
+            <p className="text-sm sm:text-base text-muted-foreground mt-1">
+              View and analyze student conversations with the chatbot
+            </p>
+          </div>
+
+          <div className="flex items-center gap-2 flex-wrap">
+            <DateRangePicker dateRange={dateRange} onDateRangeChange={setDateRange} />
+            <Button variant="outline" className="gap-2" onClick={handleExportMessages}>
+              <Download className="h-4 w-4" />
+              <span className="hidden sm:inline">Export</span>
+            </Button>
+          </div>
+        </div>
+
+        {/* Search Bar */}
+        <div className="relative max-w-md">
           <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
           <input
             type="text"
             placeholder="Search messages..."
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
-            className="w-full pl-10 pr-4 py-2 border rounded-lg bg-background focus:outline-none focus:ring-2 focus:ring-primary text-sm"
+            className="w-full pl-10 pr-4 py-2.5 border rounded-lg bg-background focus:outline-none focus:ring-2 focus:ring-primary text-sm"
           />
         </div>
-      </div>
 
-      <Separator />
-
-      {/* Sentiment Filter */}
-      <div>
-        <label className="text-sm font-semibold text-foreground mb-3 block">Sentiment</label>
-        <div className="space-y-2">
-          {[
-            { value: "all", label: "All Sentiments", icon: null },
-            { value: "positive", label: "Positive", icon: <ThumbsUp className="h-4 w-4 text-green-500" /> },
-            { value: "neutral", label: "Neutral", icon: <MessageSquare className="h-4 w-4 text-gray-400" /> },
-            { value: "negative", label: "Negative", icon: <ThumbsDown className="h-4 w-4 text-red-500" /> },
-          ].map((option) => (
-            <button
-              key={option.value}
-              onClick={() => setSentimentFilter(option.value)}
-              className={cn(
-                "w-full flex items-center gap-2 px-3 py-2 rounded-lg text-sm transition-colors",
-                sentimentFilter === option.value
-                  ? "bg-primary text-primary-foreground"
-                  : "hover:bg-muted"
-              )}
-            >
-              {option.icon}
-              <span>{option.label}</span>
-            </button>
-          ))}
-        </div>
-      </div>
-
-      <Separator />
-
-      {/* Category Filter */}
-      <div>
-        <label className="text-sm font-semibold text-foreground mb-3 block">Category</label>
-        <div className="space-y-2 max-h-48 overflow-y-auto">
-          <button
-            onClick={() => setCategoryFilter("all")}
-            className={cn(
-              "w-full flex items-center gap-2 px-3 py-2 rounded-lg text-sm transition-colors text-left",
-              categoryFilter === "all"
-                ? "bg-primary text-primary-foreground"
-                : "hover:bg-muted"
-            )}
-          >
-            All Categories
-          </button>
-          {uniqueCategories.map((cat) => (
-            <button
-              key={cat}
-              onClick={() => setCategoryFilter(cat)}
-              className={cn(
-                "w-full flex items-center gap-2 px-3 py-2 rounded-lg text-sm transition-colors text-left",
-                categoryFilter === cat
-                  ? "bg-primary text-primary-foreground"
-                  : "hover:bg-muted"
-              )}
-            >
-              {cat}
-            </button>
-          ))}
-        </div>
-      </div>
-
-      <Separator />
-
-      {/* Response Time Filter */}
-      <div>
-        <label className="text-sm font-semibold text-foreground mb-3 block">Response Time</label>
-        <div className="space-y-2">
-          {[
-            { value: "all", label: "All Times" },
-            { value: "under2s", label: "Under 2 seconds" },
-            { value: "2to5s", label: "2-5 seconds" },
-            { value: "5to10s", label: "5-10 seconds" },
-            { value: "over10s", label: "Over 10 seconds" },
-          ].map((option) => (
-            <button
-              key={option.value}
-              onClick={() => setResponseTimeFilter(option.value)}
-              className={cn(
-                "w-full flex items-center gap-2 px-3 py-2 rounded-lg text-sm transition-colors text-left",
-                responseTimeFilter === option.value
-                  ? "bg-primary text-primary-foreground"
-                  : "hover:bg-muted"
-              )}
-            >
-              {option.label}
-            </button>
-          ))}
-        </div>
-      </div>
-
-      <Separator />
-
-      {/* Time Period Filter */}
-      <div>
-        <label className="text-sm font-semibold text-foreground mb-3 block">Time of Day</label>
-        <div className="space-y-2">
-          {[
-            { value: null, label: "Any Time" },
-            { value: "morning", label: "Morning (6am-12pm)" },
-            { value: "afternoon", label: "Afternoon (12pm-6pm)" },
-            { value: "evening", label: "Evening (6pm-12am)" },
-            { value: "overnight", label: "Overnight (12am-6am)" },
-          ].map((option) => (
-            <button
-              key={option.value || "any"}
-              onClick={() => setTimePeriodFilter(option.value)}
-              className={cn(
-                "w-full flex items-center gap-2 px-3 py-2 rounded-lg text-sm transition-colors text-left",
-                timePeriodFilter === option.value
-                  ? "bg-primary text-primary-foreground"
-                  : "hover:bg-muted"
-              )}
-            >
-              {option.label}
-            </button>
-          ))}
-        </div>
-      </div>
-
-      <Separator />
-
-      {/* Rating Filter */}
-      <div>
-        <label className="text-sm font-semibold text-foreground mb-3 block">Rating</label>
-        <div className="space-y-2">
-          <button
-            onClick={() => setRatingFilter("all")}
-            className={cn(
-              "w-full flex items-center gap-2 px-3 py-2 rounded-lg text-sm transition-colors text-left",
-              ratingFilter === "all"
-                ? "bg-primary text-primary-foreground"
-                : "hover:bg-muted"
-            )}
-          >
-            All Ratings
-          </button>
-          {[5, 4, 3, 2, 1].map((rating) => (
-            <button
-              key={rating}
-              onClick={() => setRatingFilter(String(rating))}
-              className={cn(
-                "w-full flex items-center gap-2 px-3 py-2 rounded-lg text-sm transition-colors text-left",
-                ratingFilter === String(rating)
-                  ? "bg-primary text-primary-foreground"
-                  : "hover:bg-muted"
-              )}
-            >
-              <span className="text-yellow-500">{"★".repeat(rating)}{"☆".repeat(5 - rating)}</span>
-            </button>
-          ))}
-        </div>
-      </div>
-
-      {/* Clear All Button */}
-      {activeFiltersCount > 0 && (
-        <>
-          <Separator />
-          <Button variant="outline" className="w-full" onClick={clearAllFilters}>
-            <X className="h-4 w-4 mr-2" />
-            Clear All Filters
-          </Button>
-        </>
-      )}
-    </div>
-  );
-
-  return (
-    <DashboardLayout>
-      <div className="flex flex-col lg:flex-row gap-6">
-        {/* Permanent Filter Sidebar - Desktop */}
-        <aside className="hidden lg:block w-64 flex-shrink-0">
-          <div className="sticky top-4">
-            <NeuCard className="p-4">
-              <div className="flex items-center justify-between mb-4">
-                <h3 className="font-semibold flex items-center gap-2">
-                  <Filter className="h-4 w-4" />
-                  Filters
-                </h3>
-                {activeFiltersCount > 0 && (
-                  <span className="bg-primary text-primary-foreground text-xs px-2 py-0.5 rounded-full">
-                    {activeFiltersCount}
-                  </span>
+        {/* Filter Boxes - Top Aligned */}
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+          {/* Sentiment Filter Box */}
+          <NeuCard className="p-4">
+            <h3 className="text-sm font-semibold text-muted-foreground mb-3 flex items-center gap-2">
+              <MessageSquare className="h-4 w-4" />
+              Sentiment
+            </h3>
+            <div className="space-y-2">
+              <button
+                onClick={() => setSentimentFilter("all")}
+                className={cn(
+                  "w-full flex items-center justify-between px-3 py-2 rounded-lg text-sm transition-all",
+                  sentimentFilter === "all"
+                    ? "bg-primary text-primary-foreground shadow-md"
+                    : "hover:bg-muted"
                 )}
-              </div>
-              <FilterSidebar />
-            </NeuCard>
-          </div>
-        </aside>
+              >
+                <span>All</span>
+                <span className="text-xs opacity-80">{total.toLocaleString()}</span>
+              </button>
+              <button
+                onClick={() => setSentimentFilter("positive")}
+                className={cn(
+                  "w-full flex items-center justify-between px-3 py-2 rounded-lg text-sm transition-all",
+                  sentimentFilter === "positive"
+                    ? "bg-green-500 text-white shadow-md"
+                    : "hover:bg-green-50 dark:hover:bg-green-950"
+                )}
+              >
+                <span className="flex items-center gap-2">
+                  <ThumbsUp className="h-4 w-4" />
+                  Positive
+                </span>
+                <span className="text-xs opacity-80">{sentimentCounts.positive}</span>
+              </button>
+              <button
+                onClick={() => setSentimentFilter("neutral")}
+                className={cn(
+                  "w-full flex items-center justify-between px-3 py-2 rounded-lg text-sm transition-all",
+                  sentimentFilter === "neutral"
+                    ? "bg-gray-500 text-white shadow-md"
+                    : "hover:bg-gray-50 dark:hover:bg-gray-800"
+                )}
+              >
+                <span className="flex items-center gap-2">
+                  <MessageSquare className="h-4 w-4" />
+                  Neutral
+                </span>
+                <span className="text-xs opacity-80">{sentimentCounts.neutral}</span>
+              </button>
+              <button
+                onClick={() => setSentimentFilter("negative")}
+                className={cn(
+                  "w-full flex items-center justify-between px-3 py-2 rounded-lg text-sm transition-all",
+                  sentimentFilter === "negative"
+                    ? "bg-red-500 text-white shadow-md"
+                    : "hover:bg-red-50 dark:hover:bg-red-950"
+                )}
+              >
+                <span className="flex items-center gap-2">
+                  <ThumbsDown className="h-4 w-4" />
+                  Negative
+                </span>
+                <span className="text-xs opacity-80">{sentimentCounts.negative}</span>
+              </button>
+            </div>
+          </NeuCard>
 
-        {/* Main Content */}
-        <main className="flex-1 min-w-0 space-y-4">
-          {/* Navigation Context Breadcrumb */}
-          {hasNavigationContext && sourcePageLabel && (
-            <div className="flex items-center gap-2 p-3 bg-primary/5 rounded-lg">
+          {/* Category Filter Box */}
+          <NeuCard className="p-4">
+            <h3 className="text-sm font-semibold text-muted-foreground mb-3 flex items-center gap-2">
+              <Folder className="h-4 w-4" />
+              Category
+            </h3>
+            <div className="space-y-2 max-h-48 overflow-y-auto">
+              <button
+                onClick={() => setCategoryFilter("all")}
+                className={cn(
+                  "w-full flex items-center justify-between px-3 py-2 rounded-lg text-sm transition-all text-left",
+                  categoryFilter === "all"
+                    ? "bg-primary text-primary-foreground shadow-md"
+                    : "hover:bg-muted"
+                )}
+              >
+                <span>All Categories</span>
+              </button>
+              {uniqueCategories.slice(0, 8).map(([cat, count]) => (
+                <button
+                  key={cat}
+                  onClick={() => setCategoryFilter(cat)}
+                  className={cn(
+                    "w-full flex items-center justify-between px-3 py-2 rounded-lg text-sm transition-all text-left",
+                    categoryFilter === cat
+                      ? "bg-primary text-primary-foreground shadow-md"
+                      : "hover:bg-muted"
+                  )}
+                >
+                  <span className="truncate">{cat}</span>
+                  <span className="text-xs opacity-80 ml-2">{count}</span>
+                </button>
+              ))}
+            </div>
+          </NeuCard>
+
+          {/* Response Time Filter Box */}
+          <NeuCard className="p-4">
+            <h3 className="text-sm font-semibold text-muted-foreground mb-3 flex items-center gap-2">
+              <Clock className="h-4 w-4" />
+              Response Time
+            </h3>
+            <div className="space-y-2">
+              <button
+                onClick={() => setResponseTimeFilter("all")}
+                className={cn(
+                  "w-full flex items-center justify-between px-3 py-2 rounded-lg text-sm transition-all",
+                  responseTimeFilter === "all"
+                    ? "bg-primary text-primary-foreground shadow-md"
+                    : "hover:bg-muted"
+                )}
+              >
+                <span>All Times</span>
+              </button>
+              <button
+                onClick={() => setResponseTimeFilter("instant")}
+                className={cn(
+                  "w-full flex items-center justify-between px-3 py-2 rounded-lg text-sm transition-all",
+                  responseTimeFilter === "instant"
+                    ? "bg-green-500 text-white shadow-md"
+                    : "hover:bg-green-50 dark:hover:bg-green-950"
+                )}
+              >
+                <span className="flex items-center gap-2">
+                  <Zap className="h-4 w-4" />
+                  Instant (&lt;1s)
+                </span>
+              </button>
+              <button
+                onClick={() => setResponseTimeFilter("fast")}
+                className={cn(
+                  "w-full flex items-center justify-between px-3 py-2 rounded-lg text-sm transition-all",
+                  responseTimeFilter === "fast"
+                    ? "bg-blue-500 text-white shadow-md"
+                    : "hover:bg-blue-50 dark:hover:bg-blue-950"
+                )}
+              >
+                <span className="flex items-center gap-2">
+                  <CheckCircle className="h-4 w-4" />
+                  Fast (1-3s)
+                </span>
+              </button>
+              <button
+                onClick={() => setResponseTimeFilter("moderate")}
+                className={cn(
+                  "w-full flex items-center justify-between px-3 py-2 rounded-lg text-sm transition-all",
+                  responseTimeFilter === "moderate"
+                    ? "bg-yellow-500 text-white shadow-md"
+                    : "hover:bg-yellow-50 dark:hover:bg-yellow-950"
+                )}
+              >
+                <span className="flex items-center gap-2">
+                  <AlertCircle className="h-4 w-4" />
+                  Moderate (3-10s)
+                </span>
+              </button>
+              <button
+                onClick={() => setResponseTimeFilter("slow")}
+                className={cn(
+                  "w-full flex items-center justify-between px-3 py-2 rounded-lg text-sm transition-all",
+                  responseTimeFilter === "slow"
+                    ? "bg-red-500 text-white shadow-md"
+                    : "hover:bg-red-50 dark:hover:bg-red-950"
+                )}
+              >
+                <span className="flex items-center gap-2">
+                  <XCircle className="h-4 w-4" />
+                  Slow (&gt;10s)
+                </span>
+              </button>
+            </div>
+          </NeuCard>
+
+          {/* Rating Filter Box */}
+          <NeuCard className="p-4">
+            <h3 className="text-sm font-semibold text-muted-foreground mb-3 flex items-center gap-2">
+              ⭐ Rating
+            </h3>
+            <div className="space-y-2">
+              <button
+                onClick={() => setRatingFilter("all")}
+                className={cn(
+                  "w-full flex items-center justify-between px-3 py-2 rounded-lg text-sm transition-all",
+                  ratingFilter === "all"
+                    ? "bg-primary text-primary-foreground shadow-md"
+                    : "hover:bg-muted"
+                )}
+              >
+                <span>All Ratings</span>
+              </button>
+              {[5, 4, 3, 2, 1].map((rating) => (
+                <button
+                  key={rating}
+                  onClick={() => setRatingFilter(String(rating))}
+                  className={cn(
+                    "w-full flex items-center px-3 py-2 rounded-lg text-sm transition-all",
+                    ratingFilter === String(rating)
+                      ? "bg-yellow-500 text-white shadow-md"
+                      : "hover:bg-yellow-50 dark:hover:bg-yellow-950"
+                  )}
+                >
+                  <span className="text-yellow-500">{"★".repeat(rating)}</span>
+                  <span className="text-gray-300">{"☆".repeat(5 - rating)}</span>
+                </button>
+              ))}
+            </div>
+          </NeuCard>
+        </div>
+
+        {/* Applied Filters Summary */}
+        {activeFiltersCount > 0 && (
+          <div className="flex items-center gap-2 flex-wrap p-3 bg-muted/50 rounded-lg">
+            <span className="text-sm font-medium">Active Filters:</span>
+            {sentimentFilter !== "all" && (
               <Button
-                variant="ghost"
+                variant="secondary"
                 size="sm"
-                onClick={() => navigate(`/${navParams.source}`)}
-                className="gap-2"
+                onClick={() => setSentimentFilter("all")}
+                className="gap-1 h-7"
               >
-                <ArrowLeft className="h-4 w-4" />
-                Back to {sourcePageLabel}
+                Sentiment: {sentimentFilter}
+                <X className="h-3 w-3" />
               </Button>
-              <Separator orientation="vertical" className="h-4" />
-              <span className="text-sm text-muted-foreground">
-                Viewing messages from {formatDateRangeForBreadcrumb(dateRange.from, dateRange.to)}
-              </span>
-            </div>
-          )}
-
-          {/* Header */}
-          <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
-            <div>
-              <h1 className="text-2xl sm:text-3xl font-extrabold text-foreground tracking-tight">Messages</h1>
-              <p className="text-sm sm:text-base text-muted-foreground mt-1">
-                View and analyze student conversations
-              </p>
-            </div>
-
-            <div className="flex items-center gap-2">
-              {/* Mobile Filter Toggle */}
-              <Button
-                variant="outline"
-                className="lg:hidden gap-2"
-                onClick={() => setMobileFiltersOpen(true)}
-              >
-                <Filter className="h-4 w-4" />
-                Filters
-                {activeFiltersCount > 0 && (
-                  <span className="bg-primary text-primary-foreground text-xs px-1.5 py-0.5 rounded-full">
-                    {activeFiltersCount}
-                  </span>
-                )}
-              </Button>
-
-              <DateRangePicker dateRange={dateRange} onDateRangeChange={setDateRange} />
-
-              <Button variant="outline" className="gap-2" onClick={handleExportMessages}>
-                <Download className="h-4 w-4" />
-                <span className="hidden sm:inline">Export</span>
-              </Button>
-            </div>
-          </div>
-
-          {/* Applied Filters Summary */}
-          {activeFiltersCount > 0 && (
-            <div className="flex items-center gap-2 flex-wrap p-3 bg-muted/50 rounded-lg">
-              <span className="text-sm font-medium">Active Filters:</span>
-              {sentimentFilter !== "all" && (
-                <Button
-                  variant="secondary"
-                  size="sm"
-                  onClick={() => setSentimentFilter("all")}
-                  className="gap-1 h-7"
-                >
-                  Sentiment: {sentimentFilter}
-                  <X className="h-3 w-3" />
-                </Button>
-              )}
-              {categoryFilter !== "all" && (
-                <Button
-                  variant="secondary"
-                  size="sm"
-                  onClick={() => setCategoryFilter("all")}
-                  className="gap-1 h-7"
-                >
-                  Category: {categoryFilter}
-                  <X className="h-3 w-3" />
-                </Button>
-              )}
-              {ratingFilter !== "all" && (
-                <Button
-                  variant="secondary"
-                  size="sm"
-                  onClick={() => setRatingFilter("all")}
-                  className="gap-1 h-7"
-                >
-                  Rating: {ratingFilter} stars
-                  <X className="h-3 w-3" />
-                </Button>
-              )}
-              {responseTimeFilter !== "all" && (
-                <Button
-                  variant="secondary"
-                  size="sm"
-                  onClick={() => setResponseTimeFilter("all")}
-                  className="gap-1 h-7"
-                >
-                  Response: {responseTimeFilter}
-                  <X className="h-3 w-3" />
-                </Button>
-              )}
-              {timePeriodFilter && (
-                <Button
-                  variant="secondary"
-                  size="sm"
-                  onClick={() => setTimePeriodFilter(null)}
-                  className="gap-1 h-7"
-                >
-                  Time: {timePeriodFilter}
-                  <X className="h-3 w-3" />
-                </Button>
-              )}
-              <Button variant="ghost" size="sm" onClick={clearAllFilters} className="h-7">
-                Clear All
-              </Button>
-            </div>
-          )}
-
-          {/* Results Count */}
-          <p className="text-sm text-muted-foreground">
-            Showing {filteredMessages.length} of {total.toLocaleString()} messages
-            {activeFiltersCount > 0 && " (filtered)"}
-          </p>
-
-          {/* Message List */}
-          <div className="space-y-3">
-            {isLoading ? (
-              <div className="flex items-center justify-center py-12">
-                <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary" />
-              </div>
-            ) : filteredMessages.length === 0 ? (
-              <NeuCard className="text-center py-12">
-                <MessageSquare className="h-12 w-12 mx-auto text-muted-foreground mb-4" />
-                <p className="text-lg font-medium">No messages found</p>
-                <p className="text-muted-foreground">Try adjusting your filters or date range</p>
-                {activeFiltersCount > 0 && (
-                  <Button variant="outline" className="mt-4" onClick={clearAllFilters}>
-                    Clear All Filters
-                  </Button>
-                )}
-              </NeuCard>
-            ) : (
-              filteredMessages.map((message) => (
-                <NeuCard
-                  key={message.id}
-                  className="cursor-pointer hover:shadow-lg transition-all"
-                  onClick={() => setSelectedMessage(message.id)}
-                >
-                  <div className="flex flex-col sm:flex-row sm:items-start justify-between gap-3">
-                    <div className="flex-1 min-w-0">
-                      <div className="flex items-center gap-2 mb-2">
-                        {getSentimentIcon(message.sentiment)}
-                        <span className="text-xs text-muted-foreground">
-                          {formatDate(message.createdAt)}
-                        </span>
-                        {message.category && (
-                          <span className="px-2 py-0.5 rounded-full text-xs bg-primary/10 text-primary">
-                            {message.category}
-                          </span>
-                        )}
-                      </div>
-                      <p className="text-sm font-medium line-clamp-2">{message.query}</p>
-                      {message.response && (
-                        <p className="text-sm text-muted-foreground mt-1 line-clamp-1">
-                          {message.response}
-                        </p>
-                      )}
-                    </div>
-                    <div className="flex items-center gap-4 text-sm flex-shrink-0">
-                      {message.responseTimeMs && (
-                        <div className="flex items-center gap-1 text-muted-foreground">
-                          <Clock className="h-3 w-3" />
-                          <span>{formatResponseTime(message.responseTimeMs)}</span>
-                        </div>
-                      )}
-                      {message.rating && (
-                        <span className="text-yellow-500">
-                          {"★".repeat(message.rating)}
-                        </span>
-                      )}
-                      <ChevronRight className="h-4 w-4 text-muted-foreground" />
-                    </div>
-                  </div>
-                </NeuCard>
-              ))
             )}
-          </div>
-
-          {/* Pagination */}
-          {totalPages > 1 && (
-            <div className="flex items-center justify-center gap-2 pt-4">
+            {categoryFilter !== "all" && (
               <Button
-                variant="outline"
+                variant="secondary"
                 size="sm"
-                onClick={() => setPage(Math.max(0, page - 1))}
-                disabled={page === 0}
+                onClick={() => setCategoryFilter("all")}
+                className="gap-1 h-7"
               >
-                <ChevronLeft className="h-4 w-4" />
-                Previous
+                Category: {categoryFilter}
+                <X className="h-3 w-3" />
               </Button>
-              <span className="text-sm text-muted-foreground px-4">
-                Page {page + 1} of {totalPages}
-              </span>
+            )}
+            {ratingFilter !== "all" && (
               <Button
-                variant="outline"
+                variant="secondary"
                 size="sm"
-                onClick={() => setPage(page + 1)}
-                disabled={page >= totalPages - 1}
+                onClick={() => setRatingFilter("all")}
+                className="gap-1 h-7"
               >
-                Next
-                <ChevronRight className="h-4 w-4" />
+                Rating: {ratingFilter} stars
+                <X className="h-3 w-3" />
               </Button>
-            </div>
-          )}
-        </main>
-      </div>
-
-      {/* Mobile Filters Dialog */}
-      <Dialog open={mobileFiltersOpen} onOpenChange={setMobileFiltersOpen}>
-        <DialogContent className="max-w-md max-h-[80vh] overflow-hidden flex flex-col">
-          <DialogHeader>
-            <DialogTitle className="flex items-center gap-2">
-              <Filter className="h-5 w-5" />
-              Filters
-            </DialogTitle>
-          </DialogHeader>
-          <ScrollArea className="flex-1 pr-4">
-            <FilterSidebar />
-          </ScrollArea>
-          <div className="pt-4 border-t">
-            <Button className="w-full" onClick={() => setMobileFiltersOpen(false)}>
-              Apply Filters
+            )}
+            {responseTimeFilter !== "all" && (
+              <Button
+                variant="secondary"
+                size="sm"
+                onClick={() => setResponseTimeFilter("all")}
+                className="gap-1 h-7"
+              >
+                Response: {responseTimeFilter}
+                <X className="h-3 w-3" />
+              </Button>
+            )}
+            <Button variant="ghost" size="sm" onClick={clearAllFilters} className="h-7">
+              Clear All
             </Button>
           </div>
-        </DialogContent>
-      </Dialog>
+        )}
 
-      {/* Message Detail Modal */}
+        {/* Results Count */}
+        <p className="text-sm text-muted-foreground">
+          Showing {filteredMessages.length} of {total.toLocaleString()} messages
+          {activeFiltersCount > 0 && " (filtered)"}
+        </p>
+
+        {/* Message List */}
+        <div className="space-y-3">
+          {isLoading ? (
+            <div className="flex items-center justify-center py-12">
+              <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary" />
+            </div>
+          ) : filteredMessages.length === 0 ? (
+            <NeuCard className="text-center py-12">
+              <MessageSquare className="h-12 w-12 mx-auto text-muted-foreground mb-4" />
+              <p className="text-lg font-medium">No messages found</p>
+              <p className="text-muted-foreground">Try adjusting your filters or date range</p>
+              {activeFiltersCount > 0 && (
+                <Button variant="outline" className="mt-4" onClick={clearAllFilters}>
+                  Clear All Filters
+                </Button>
+              )}
+            </NeuCard>
+          ) : (
+            filteredMessages.map((message) => (
+              <NeuCard
+                key={message.id}
+                className="cursor-pointer hover:shadow-lg transition-all"
+                onClick={() => setSelectedMessage(message.id)}
+              >
+                <div className="flex flex-col sm:flex-row sm:items-start justify-between gap-3">
+                  <div className="flex-1 min-w-0">
+                    <div className="flex items-center gap-2 mb-2 flex-wrap">
+                      {getSentimentIcon(message.sentiment)}
+                      <span className="text-xs text-muted-foreground">
+                        {formatDate(message.createdAt)}
+                      </span>
+                      {message.category && (
+                        <span className="px-2 py-0.5 rounded-full text-xs bg-primary/10 text-primary">
+                          {message.category}
+                        </span>
+                      )}
+                    </div>
+                    <p className="text-sm font-medium line-clamp-2">{message.query}</p>
+                    {message.response && (
+                      <p className="text-sm text-muted-foreground mt-1 line-clamp-1">
+                        {message.response}
+                      </p>
+                    )}
+                  </div>
+                  <div className="flex items-center gap-4 text-sm flex-shrink-0">
+                    {message.responseTimeMs && (
+                      <div className="flex items-center gap-1 text-muted-foreground">
+                        <Clock className="h-3 w-3" />
+                        <span>{formatResponseTime(message.responseTimeMs)}</span>
+                      </div>
+                    )}
+                    {message.rating && (
+                      <span className="text-yellow-500">
+                        {"★".repeat(message.rating)}
+                      </span>
+                    )}
+                    <ChevronRight className="h-4 w-4 text-muted-foreground" />
+                  </div>
+                </div>
+              </NeuCard>
+            ))
+          )}
+        </div>
+
+        {/* Pagination */}
+        {totalPages > 1 && (
+          <div className="flex items-center justify-center gap-2 pt-4">
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => setPage(Math.max(0, page - 1))}
+              disabled={page === 0}
+            >
+              <ChevronLeft className="h-4 w-4" />
+              Previous
+            </Button>
+            <span className="text-sm text-muted-foreground px-4">
+              Page {page + 1} of {totalPages}
+            </span>
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => setPage(page + 1)}
+              disabled={page >= totalPages - 1}
+            >
+              Next
+              <ChevronRight className="h-4 w-4" />
+            </Button>
+          </div>
+        )}
+      </div>
+
+      {/* Message Detail Modal - Fixed with internal scrolling */}
       <Dialog open={selectedMessage !== null} onOpenChange={(open) => !open && setSelectedMessage(null)}>
-        <DialogContent className="max-w-3xl max-h-[90vh] overflow-hidden flex flex-col">
-          <DialogHeader>
+        <DialogContent className="max-w-3xl max-h-[90vh] flex flex-col p-0 gap-0">
+          {/* Sticky Header */}
+          <DialogHeader className="p-6 pb-4 border-b flex-shrink-0">
             <DialogTitle>Message Details</DialogTitle>
             <DialogDescription>
               Complete conversation and student context
             </DialogDescription>
           </DialogHeader>
           
-          {isLoadingDetail ? (
-            <div className="flex items-center justify-center py-12">
-              <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary" />
-            </div>
-          ) : messageDetail ? (
-            <ScrollArea className="flex-1 pr-4">
+          {/* Scrollable Body */}
+          <div className="flex-1 overflow-y-auto p-6">
+            {isLoadingDetail ? (
+              <div className="flex items-center justify-center py-12">
+                <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary" />
+              </div>
+            ) : messageDetail ? (
               <div className="space-y-6">
                 {/* Student Info */}
                 <div className="flex items-center justify-between p-4 bg-primary/5 rounded-lg">
@@ -736,17 +689,6 @@ export default function Messages() {
                       <p className="text-sm text-muted-foreground">{messageDetail.student?.studentId}</p>
                     </div>
                   </div>
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    onClick={() => {
-                      setSelectedMessage(null);
-                      navigate(`/students?id=${messageDetail.message.studentId}&from=${dateRange.from.toISOString().split('T')[0]}&to=${dateRange.to.toISOString().split('T')[0]}&source=messages`);
-                    }}
-                  >
-                    <ExternalLink className="h-4 w-4 mr-2" />
-                    View Profile
-                  </Button>
                 </div>
 
                 {/* Query */}
@@ -843,7 +785,7 @@ export default function Messages() {
                           No other conversations found for this student
                         </p>
                       ) : (
-                        <div className="space-y-4">
+                        <div className="space-y-4 max-h-64 overflow-y-auto">
                           {studentConversations.slice(0, 10).map((msg) => (
                             <div
                               key={msg.id}
@@ -872,10 +814,9 @@ export default function Messages() {
                               {/* Metadata */}
                               <div className="p-2 bg-muted/30 flex items-center gap-4 text-xs flex-wrap">
                                 {msg.category && (
-                                  <CategoryLink
-                                    category={msg.category}
-                                    context={{ fromPage: "/messages", dateRange }}
-                                  />
+                                  <span className="px-2 py-0.5 rounded-full bg-primary/10 text-primary">
+                                    {msg.category}
+                                  </span>
                                 )}
                                 <span className={cn(
                                   "capitalize",
@@ -897,28 +838,48 @@ export default function Messages() {
                               </div>
                             </div>
                           ))}
-                          
-                          {studentConversations.length > 10 && (
-                            <Button
-                              variant="outline"
-                              className="w-full"
-                              onClick={() => {
-                                setSelectedMessage(null);
-                                navigate(`/students?id=${messageDetail.message.studentId}&source=messages`);
-                              }}
-                            >
-                              View Complete Student Profile
-                              <ExternalLink className="h-4 w-4 ml-2" />
-                            </Button>
-                          )}
                         </div>
                       )}
                     </div>
                   )}
                 </div>
               </div>
-            </ScrollArea>
-          ) : null}
+            ) : null}
+          </div>
+
+          {/* Sticky Footer with Actions */}
+          {messageDetail && (
+            <div className="p-4 border-t flex-shrink-0 flex items-center justify-between gap-4 bg-background">
+              <Button
+                variant="outline"
+                onClick={() => {
+                  setSelectedMessage(null);
+                  navigate(`/students?id=${messageDetail.message.studentId}&from=${dateRange.from.toISOString().split('T')[0]}&to=${dateRange.to.toISOString().split('T')[0]}&source=messages`);
+                }}
+                className="gap-2"
+              >
+                <ExternalLink className="h-4 w-4" />
+                View Student Profile
+              </Button>
+              <Button
+                onClick={() => {
+                  const data = `Message ID: ${messageDetail.message.id}\nStudent: ${messageDetail.student?.name || messageDetail.message.studentId}\nQuery: ${messageDetail.message.query}\nResponse: ${messageDetail.message.response}\nCategory: ${messageDetail.message.category}\nSentiment: ${messageDetail.message.sentiment}\nResponse Time: ${formatResponseTime(messageDetail.message.responseTimeMs || 0)}\nRating: ${messageDetail.message.rating || 'N/A'}\nTimestamp: ${format(new Date(messageDetail.message.createdAt), "PPpp")}`;
+                  const blob = new Blob([data], { type: "text/plain" });
+                  const url = URL.createObjectURL(blob);
+                  const a = document.createElement("a");
+                  a.href = url;
+                  a.download = `message-${messageDetail.message.id}.txt`;
+                  a.click();
+                  URL.revokeObjectURL(url);
+                  toast.success("Message exported successfully");
+                }}
+                className="gap-2"
+              >
+                <Download className="h-4 w-4" />
+                Download
+              </Button>
+            </div>
+          )}
         </DialogContent>
       </Dialog>
     </DashboardLayout>
