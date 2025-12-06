@@ -12,7 +12,13 @@ import {
   getMessageById,
   getMessageCount,
   getStudents,
-  getStudentById
+  getStudentById,
+  getNotifications,
+  getUnreadNotificationCount,
+  createNotification,
+  markNotificationAsRead,
+  markAllNotificationsAsRead,
+  dismissNotification
 } from "./db";
 
 export const appRouter = router({
@@ -140,6 +146,63 @@ export const appRouter = router({
       }))
       .query(async ({ input }) => {
         return await getStudentById(input.id);
+      }),
+  }),
+
+  // Notifications Router
+  notifications: router({
+    list: publicProcedure
+      .input(z.object({
+        includeRead: z.boolean().optional(),
+        includeDismissed: z.boolean().optional(),
+        limit: z.number().min(1).max(50).default(20),
+        offset: z.number().min(0).default(0),
+      }).optional())
+      .query(async ({ input }) => {
+        return await getNotifications({
+          includeRead: input?.includeRead,
+          includeDismissed: input?.includeDismissed,
+          limit: input?.limit || 20,
+          offset: input?.offset || 0,
+        });
+      }),
+
+    unreadCount: publicProcedure
+      .query(async () => {
+        return await getUnreadNotificationCount();
+      }),
+
+    create: protectedProcedure
+      .input(z.object({
+        type: z.enum(['critical', 'warning', 'info']),
+        title: z.string().min(1).max(255),
+        message: z.string().min(1),
+        studentId: z.number().optional(),
+        messageId: z.number().optional(),
+      }))
+      .mutation(async ({ input }) => {
+        return await createNotification(input);
+      }),
+
+    markAsRead: publicProcedure
+      .input(z.object({
+        id: z.number(),
+      }))
+      .mutation(async ({ input }) => {
+        return await markNotificationAsRead(input.id);
+      }),
+
+    markAllAsRead: publicProcedure
+      .mutation(async () => {
+        return await markAllNotificationsAsRead();
+      }),
+
+    dismiss: publicProcedure
+      .input(z.object({
+        id: z.number(),
+      }))
+      .mutation(async ({ input }) => {
+        return await dismissNotification(input.id);
       }),
   }),
 });

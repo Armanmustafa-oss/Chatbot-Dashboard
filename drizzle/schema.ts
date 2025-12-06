@@ -105,3 +105,22 @@ export const queryCategories = mysqlTable("queryCategories", {
 
 export type QueryCategory = typeof queryCategories.$inferSelect;
 export type InsertQueryCategory = typeof queryCategories.$inferInsert;
+
+
+/**
+ * Notifications table - stores urgent alerts and notifications for administrators
+ */
+export const notifications = mysqlTable("notifications", {
+  id: int("id").autoincrement().primaryKey(),
+  type: mysqlEnum("type", ["critical", "warning", "info"]).default("info").notNull(),
+  title: varchar("title", { length: 255 }).notNull(),
+  message: text("message").notNull(),
+  studentId: int("studentId"), // Optional reference to related student
+  messageId: int("messageId"), // Optional reference to related message
+  isRead: boolean("isRead").default(false).notNull(),
+  isDismissed: boolean("isDismissed").default(false).notNull(),
+  createdAt: timestamp("createdAt").defaultNow().notNull(),
+});
+
+export type Notification = typeof notifications.$inferSelect;
+export type InsertNotification = typeof notifications.$inferInsert;

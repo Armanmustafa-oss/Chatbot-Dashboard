@@ -1,6 +1,7 @@
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 import { useAuth } from "@/_core/hooks/useAuth";
+import { NotificationBell } from "./NotificationBell";
 import {
   BarChart3,
   Home,
@@ -61,18 +62,22 @@ export function DashboardLayout({ children }: { children: React.ReactNode }) {
             </div>
             <span className="text-lg font-bold tracking-tight">EduBot</span>
           </div>
-          <button
-            onClick={() => setIsMobileMenuOpen(!isMobileMenuOpen)}
-            className="p-2 rounded-lg hover:bg-muted transition-colors touch-manipulation"
-            style={{ minWidth: "44px", minHeight: "44px" }}
-            aria-label={isMobileMenuOpen ? "Close menu" : "Open menu"}
-          >
-            {isMobileMenuOpen ? (
-              <X className="h-6 w-6" />
-            ) : (
-              <Menu className="h-6 w-6" />
-            )}
-          </button>
+          <div className="flex items-center gap-2">
+            {/* Notification Bell - Mobile */}
+            <NotificationBell />
+            <button
+              onClick={() => setIsMobileMenuOpen(!isMobileMenuOpen)}
+              className="p-2 rounded-lg hover:bg-muted transition-colors touch-manipulation"
+              style={{ minWidth: "44px", minHeight: "44px" }}
+              aria-label={isMobileMenuOpen ? "Close menu" : "Open menu"}
+            >
+              {isMobileMenuOpen ? (
+                <X className="h-6 w-6" />
+              ) : (
+                <Menu className="h-6 w-6" />
+              )}
+            </button>
+          </div>
         </div>
       </header>
 
@@ -94,11 +99,15 @@ export function DashboardLayout({ children }: { children: React.ReactNode }) {
       >
         <div className="h-full px-4 py-6 flex flex-col overflow-y-auto">
           {/* Logo - Hidden on mobile (shown in header) */}
-          <div className="hidden md:flex items-center gap-3 px-4 mb-10">
-            <div className="h-10 w-10 rounded-xl bg-primary flex items-center justify-center shadow-lg shadow-primary/30">
-              <Home className="h-6 w-6 text-white" />
+          <div className="hidden md:flex items-center justify-between px-4 mb-10">
+            <div className="flex items-center gap-3">
+              <div className="h-10 w-10 rounded-xl bg-primary flex items-center justify-center shadow-lg shadow-primary/30">
+                <Home className="h-6 w-6 text-white" />
+              </div>
+              <span className="text-xl font-bold tracking-tight">EduBot</span>
             </div>
-            <span className="text-xl font-bold tracking-tight">EduBot</span>
+            {/* Notification Bell - Desktop */}
+            <NotificationBell />
           </div>
 
           {/* Mobile close button area */}

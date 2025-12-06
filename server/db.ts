@@ -8,11 +8,14 @@ import {
   dailyAnalytics, 
   hourlyPeakTimes, 
   queryCategories,
+  notifications,
   type Message,
   type Student,
   type DailyAnalytics,
   type HourlyPeakTime,
-  type QueryCategory
+  type QueryCategory,
+  type Notification,
+  type InsertNotification
 } from "../drizzle/schema";
 import { ENV } from './_core/env';
 
@@ -322,4 +325,123 @@ export async function getStudentById(id: number): Promise<Student | null> {
     .limit(1);
 
   return result[0] || null;
+}
+
+// ============ Notifications Queries ============
+
+/**
+ * Get all notifications with optional filters
+ */
+export async function getNotifications(options: {
+  includeRead?: boolean;
+  includeDismissed?: boolean;
+  limit?: number;
+  offset?: number;
+}): Promise<Notification[]> {
+  const db = await getDb();
+  if (!db) return [];
+
+  const conditions = [];
+  
+  if (!options.includeRead) {
+    conditions.push(eq(notifications.isRead, false));
+  }
+  if (!options.includeDismissed) {
+    conditions.push(eq(notifications.isDismissed, false));
+  }
+
+  const query = db
+    .select()
+    .from(notifications)
+    .orderBy(desc(notifications.createdAt))
+    .limit(options.limit || 20)
+    .offset(options.offset || 0);
+
+  if (conditions.length > 0) {
+    return await query.where(and(...conditions));
+  }
+
+  return await query;
+}
+
+/**
+ * Get unread notification count
+ */
+export async function getUnreadNotificationCount(): Promise<number> {
+  const db = await getDb();
+  if (!db) return 0;
+
+  const result = await db
+    .select({ count: count() })
+    .from(notifications)
+    .where(and(
+      eq(notifications.isRead, false),
+      eq(notifications.isDismissed, false)
+    ));
+
+  return result[0]?.count || 0;
+}
+
+/**
+ * Create a new notification
+ */
+export async function createNotification(data: InsertNotification): Promise<Notification | null> {
+  const db = await getDb();
+  if (!db) return null;
+
+  await db.insert(notifications).values(data);
+  
+  // Return the created notification
+  const result = await db
+    .select()
+    .from(notifications)
+    .orderBy(desc(notifications.id))
+    .limit(1);
+
+  return result[0] || null;
+}
+
+/**
+ * Mark notification as read
+ */
+export async function markNotificationAsRead(id: number): Promise<boolean> {
+  const db = await getDb();
+  if (!db) return false;
+
+  await db
+    .update(notifications)
+    .set({ isRead: true })
+    .where(eq(notifications.id, id));
+
+  return true;
+}
+
+/**
+ * Mark all notifications as read
+ */
+export async function markAllNotificationsAsRead(): Promise<boolean> {
+  const db = await getDb();
+  if (!db) return false;
+
+  await db
+    .update(notifications)
+    .set({ isRead: true })
+    .where(eq(notifications.isRead, false));
+
+  return true;
+}
+
+/**
+ * Dismiss a notification
+ */
+export async function dismissNotification(id: number): Promise<boolean> {
+  const db = await getDb();
+  if (!db) return false;
+
+  await db
+    .update(notifications)
+    .set({ isDismissed: true })
+    .where(eq(notifications.id, id));
+
+  return true;
 }

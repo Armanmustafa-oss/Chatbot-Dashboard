@@ -15,6 +15,13 @@
       "when": 1764941421261,
       "tag": "0001_uneven_squirrel_girl",
       "breakpoints": true
+    },
+    {
+      "idx": 2,
+      "version": "5",
+      "when": 1765013870365,
+      "tag": "0002_jazzy_mongoose",
+      "breakpoints": true
     }
   ]
 }

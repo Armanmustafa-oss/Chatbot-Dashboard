@@ -116,6 +116,45 @@ vi.mock('./db', () => ({
     createdAt: new Date(),
     lastActiveAt: new Date(),
   }),
+  getNotifications: vi.fn().mockResolvedValue([
+    {
+      id: 1,
+      type: 'critical',
+      title: 'Student Frustration Detected',
+      message: 'A student has expressed frustration multiple times.',
+      studentId: 1,
+      messageId: 10,
+      isRead: false,
+      isDismissed: false,
+      createdAt: new Date(),
+    },
+    {
+      id: 2,
+      type: 'warning',
+      title: 'Low Satisfaction Score',
+      message: 'Satisfaction score dropped below 70%.',
+      studentId: null,
+      messageId: null,
+      isRead: false,
+      isDismissed: false,
+      createdAt: new Date(),
+    },
+  ]),
+  getUnreadNotificationCount: vi.fn().mockResolvedValue(5),
+  createNotification: vi.fn().mockResolvedValue({
+    id: 3,
+    type: 'info',
+    title: 'Test Notification',
+    message: 'This is a test notification.',
+    studentId: null,
+    messageId: null,
+    isRead: false,
+    isDismissed: false,
+    createdAt: new Date(),
+  }),
+  markNotificationAsRead: vi.fn().mockResolvedValue(true),
+  markAllNotificationsAsRead: vi.fn().mockResolvedValue(true),
+  dismissNotification: vi.fn().mockResolvedValue(true),
   getUserByOpenId: vi.fn(),
   upsertUser: vi.fn(),
 }));
@@ -234,5 +273,50 @@ describe('Students Router', () => {
     expect(result).not.toBeNull();
     expect(result?.name).toBe('John Doe');
     expect(result?.department).toBe('Computer Science');
+  });
+});
+
+describe('Notifications Router', () => {
+  const mockContext = {
+    req: {} as any,
+    res: {} as any,
+    user: null,
+  };
+
+  const caller = createCaller(mockContext);
+
+  it('should list notifications', async () => {
+    const result = await caller.notifications.list({
+      limit: 10,
+      includeRead: true,
+    });
+
+    expect(result).toHaveLength(2);
+    expect(result[0].type).toBe('critical');
+    expect(result[0].title).toBe('Student Frustration Detected');
+  });
+
+  it('should get unread notification count', async () => {
+    const result = await caller.notifications.unreadCount();
+
+    expect(result).toBe(5);
+  });
+
+  it('should mark notification as read', async () => {
+    const result = await caller.notifications.markAsRead({ id: 1 });
+
+    expect(result).toBe(true);
+  });
+
+  it('should mark all notifications as read', async () => {
+    const result = await caller.notifications.markAllAsRead();
+
+    expect(result).toBe(true);
+  });
+
+  it('should dismiss notification', async () => {
+    const result = await caller.notifications.dismiss({ id: 1 });
+
+    expect(result).toBe(true);
   });
 });
