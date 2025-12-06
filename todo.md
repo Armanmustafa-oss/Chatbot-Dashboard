@@ -153,3 +153,55 @@
 - [x] Responsive charts with auto-resize
 - [x] 44x44px minimum touch targets
 - [x] Responsive typography
+
+## Phase 5: Messages & Students Page Refinements
+
+### Analytics Page Navigation Fix
+- [x] Fix broken student navigation link in message detail view
+- [x] Make student identifiers clickable with underline and blue color
+- [x] Add hover tooltip "View student profile"
+- [x] Implement contextual deep linking with date range preservation
+- [x] Add breadcrumb showing context on destination page
+- [x] Add "back to Analytics" link on Students page when navigated from Analytics
+
+### Students Page Metric Card Drill-Downs
+- [x] Total Students card - engagement level segmentation (high/moderate/light)
+- [x] Each segment expandable with student list
+- [x] Student list with ID, interaction count, satisfaction, last active
+- [x] Sorting options (satisfaction, recency, interaction count, alphabetical)
+- [x] Search by student identifier
+- [x] Click-through to canonical student profile view
+- [x] Total Interactions card - category segmentation with counts and satisfaction
+- [x] Average Satisfaction card - histogram distribution (1-5 stars)
+- [x] Satisfaction by category breakdown
+- [x] Average Per Student card - engagement frequency histogram
+- [x] Clickable histogram bars filtering to students with that count
+
+### Messages Page Filter Redesign
+- [x] Permanent left sidebar for filters (always visible)
+- [x] Sentiment filter with radio/toggle chips (positive/neutral/negative)
+- [x] Category filter dropdown with multi-select
+- [x] Date range filter with same dual-calendar picker
+- [x] Response time filter with preset ranges
+- [x] Applied filters summary with removable tags at top
+- [x] "Clear all filters" link
+- [x] Real-time filter updates with count indicator
+- [x] Empty state message when no matches
+
+### Student History in Message Details
+- [x] Show complete conversation pairs (question + response)
+- [x] Reverse chronological timeline
+- [x] Full question text with "show more" for long content
+- [x] Full bot response with visual separation
+- [x] Metadata: timestamp, category badge, sentiment, rating, response time
+- [x] Clickable historical interactions opening full message detail
+- [x] "View Complete Student Profile" link at bottom
+
+### Cross-Page Navigation Web
+- [x] Centralized navigation utility function
+- [x] Navigate to student with context preservation
+- [x] Navigate to message with context preservation
+- [x] Navigate to messages with pre-applied filters
+- [x] All category badges become navigation links
+- [x] All student identifiers become navigation links
+- [x] All message IDs become navigation links

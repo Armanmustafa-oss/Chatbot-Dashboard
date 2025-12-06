@@ -1,4 +1,5 @@
 import { DashboardLayout } from "@/components/DashboardLayout";
+import { StudentLink, CategoryLink } from "@/components/StudentLink";
 import { NeuCard } from "@/components/NeuCard";
 import { Button } from "@/components/ui/button";
 import { Calendar } from "@/components/ui/calendar";
@@ -844,7 +845,16 @@ export default function Analytics() {
                     <User className="h-5 w-5 text-primary" />
                   </div>
                   <div>
-                    <p className="font-medium">{messageDetail.student?.name || "Unknown Student"}</p>
+                    <StudentLink
+                      studentId={messageDetail.message.studentId}
+                      studentName={messageDetail.student?.name}
+                      showIcon={false}
+                      context={{
+                        fromPage: '/analytics',
+                        dateRange: dateRange,
+                      }}
+                      className="text-base"
+                    />
                     <p className="text-sm text-muted-foreground">{messageDetail.student?.studentId}</p>
                   </div>
                 </div>
@@ -853,7 +863,7 @@ export default function Analytics() {
                   size="sm"
                   onClick={() => {
                     setMessageDetailOpen(false);
-                    navigateToStudent(messageDetail.message.studentId);
+                    navigate(`/students?id=${messageDetail.message.studentId}&from=${dateRange.from.toISOString().split('T')[0]}&to=${dateRange.to.toISOString().split('T')[0]}&source=analytics`);
                   }}
                 >
                   <ExternalLink className="h-4 w-4 mr-2" />
@@ -879,7 +889,13 @@ export default function Analytics() {
               <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
                 <div className="p-3 bg-muted rounded-lg text-center">
                   <p className="text-xs text-muted-foreground">Category</p>
-                  <p className="font-medium text-sm">{messageDetail.message.category}</p>
+                  <CategoryLink
+                    category={messageDetail.message.category || "General"}
+                    context={{
+                      fromPage: '/analytics',
+                      dateRange: dateRange,
+                    }}
+                  />
                 </div>
                 <div className="p-3 bg-muted rounded-lg text-center">
                   <p className="text-xs text-muted-foreground">Response Time</p>

@@ -1,7 +1,9 @@
 import { DashboardLayout } from "@/components/DashboardLayout";
-import { DateRangePicker, DateRange, TimePeriodFilter } from "@/components/DateRangePicker";
+import { DateRangePicker, DateRange } from "@/components/DateRangePicker";
 import { NeuCard } from "@/components/NeuCard";
+import { StudentLink, CategoryLink } from "@/components/StudentLink";
 import { Button } from "@/components/ui/button";
+import { Checkbox } from "@/components/ui/checkbox";
 import {
   Dialog,
   DialogContent,
@@ -9,25 +11,22 @@ import {
   DialogTitle,
   DialogDescription,
 } from "@/components/ui/dialog";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
-import { Input } from "@/components/ui/input";
 import { ScrollArea } from "@/components/ui/scroll-area";
+import { Separator } from "@/components/ui/separator";
 import { formatResponseTime } from "@/lib/export-service";
+import { parseNavigationParams, formatDateRangeForBreadcrumb } from "@/lib/navigation";
 import { trpc } from "@/lib/trpc";
 import { cn } from "@/lib/utils";
 import { format } from "date-fns";
 import {
+  ArrowLeft,
   ChevronLeft,
   ChevronRight,
   Clock,
   Download,
+  ExternalLink,
   Filter,
+  History,
   MessageSquare,
   Phone,
   Search,
@@ -36,27 +35,37 @@ import {
   ThumbsUp,
   User,
   X,
-  History,
 } from "lucide-react";
-import { useState, useMemo } from "react";
+import { useState, useMemo, useEffect } from "react";
+import { useLocation, useSearch } from "wouter";
 import { toast } from "sonner";
 
 export default function Messages() {
-  const [selectedMessage, setSelectedMessage] = useState<number | null>(null);
-  const [sentimentFilter, setSentimentFilter] = useState<string>("all");
-  const [categoryFilter, setCategoryFilter] = useState<string>("all");
+  const [, navigate] = useLocation();
+  const searchString = useSearch();
+  const searchParams = new URLSearchParams(searchString);
+  const navParams = parseNavigationParams(searchParams);
+
+  const [selectedMessage, setSelectedMessage] = useState<number | null>(navParams.id || null);
+  const [sentimentFilter, setSentimentFilter] = useState<string>(navParams.sentiment || "all");
+  const [categoryFilter, setCategoryFilter] = useState<string>(navParams.category || "all");
   const [ratingFilter, setRatingFilter] = useState<string>("all");
   const [responseTimeFilter, setResponseTimeFilter] = useState<string>("all");
   const [timePeriodFilter, setTimePeriodFilter] = useState<string | null>(null);
   const [searchQuery, setSearchQuery] = useState("");
   const [page, setPage] = useState(0);
-  const [showFilters, setShowFilters] = useState(false);
   const [showConversationHistory, setShowConversationHistory] = useState(false);
+  const [mobileFiltersOpen, setMobileFiltersOpen] = useState(false);
   const [dateRange, setDateRange] = useState<DateRange>({
-    from: new Date(Date.now() - 30 * 24 * 60 * 60 * 1000),
-    to: new Date(),
+    from: navParams.from || new Date(Date.now() - 30 * 24 * 60 * 60 * 1000),
+    to: navParams.to || new Date(),
   });
   const limit = 20;
+
+  // Check if navigated from another page with context
+  const hasNavigationContext = navParams.source !== undefined;
+  const sourcePageLabel = navParams.source === "analytics" ? "Analytics" : 
+                          navParams.source === "students" ? "Students" : null;
 
   // Fetch messages with filters
   const { data, isLoading, refetch } = trpc.messages.list.useQuery({
@@ -116,12 +125,14 @@ export default function Messages() {
       filtered = filtered.filter((m) => {
         if (!m.responseTimeMs) return false;
         switch (responseTimeFilter) {
-          case "fast":
-            return m.responseTimeMs < 1000;
-          case "normal":
-            return m.responseTimeMs >= 1000 && m.responseTimeMs < 3000;
-          case "slow":
-            return m.responseTimeMs >= 3000;
+          case "under2s":
+            return m.responseTimeMs < 2000;
+          case "2to5s":
+            return m.responseTimeMs >= 2000 && m.responseTimeMs < 5000;
+          case "5to10s":
+            return m.responseTimeMs >= 5000 && m.responseTimeMs < 10000;
+          case "over10s":
+            return m.responseTimeMs >= 10000;
           default:
             return true;
         }
@@ -150,6 +161,14 @@ export default function Messages() {
     return filtered;
   }, [messages, searchQuery, ratingFilter, responseTimeFilter, timePeriodFilter]);
 
+  // Student's conversation history
+  const studentConversations = useMemo(() => {
+    if (!conversationHistory || !messageDetail?.student) return [];
+    return conversationHistory.messages.filter(
+      (m) => m.studentId === messageDetail.message.studentId
+    );
+  }, [conversationHistory, messageDetail]);
+
   const getSentimentIcon = (sentiment: string | null) => {
     switch (sentiment) {
       case "positive":
@@ -164,11 +183,11 @@ export default function Messages() {
   const getSentimentColor = (sentiment: string | null) => {
     switch (sentiment) {
       case "positive":
-        return "bg-green-100 text-green-700 border-green-200";
+        return "bg-green-100 text-green-700 border-green-200 dark:bg-green-950 dark:text-green-300 dark:border-green-800";
       case "negative":
-        return "bg-red-100 text-red-700 border-red-200";
+        return "bg-red-100 text-red-700 border-red-200 dark:bg-red-950 dark:text-red-300 dark:border-red-800";
       default:
-        return "bg-gray-100 text-gray-700 border-gray-200";
+        return "bg-gray-100 text-gray-700 border-gray-200 dark:bg-gray-800 dark:text-gray-300 dark:border-gray-700";
     }
   };
 
@@ -200,7 +219,6 @@ export default function Messages() {
   };
 
   const handleExportMessages = () => {
-    // Export filtered messages as CSV
     const headers = ["Date", "Student ID", "Query", "Response", "Sentiment", "Category", "Response Time", "Rating"];
     const rows = filteredMessages.map((m) => [
       formatDate(m.createdAt),
@@ -224,466 +242,683 @@ export default function Messages() {
     toast.success("Messages exported successfully");
   };
 
-  return (
-    <DashboardLayout>
-      {/* Header */}
-      <div className="flex flex-col gap-4">
-        <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
-          <div>
-            <h1 className="text-2xl sm:text-3xl font-extrabold text-foreground tracking-tight">Messages</h1>
-            <p className="text-sm sm:text-base text-muted-foreground mt-1">
-              View and analyze student conversations with the chatbot
-            </p>
-          </div>
+  // Unique categories from data
+  const uniqueCategories = useMemo(() => {
+    const cats = new Set<string>();
+    messages.forEach((m) => {
+      if (m.category) cats.add(m.category);
+    });
+    return Array.from(cats).sort();
+  }, [messages]);
 
-          <div className="flex gap-2">
-            <Button
-              variant="outline"
-              className="neu-flat border-0 gap-2"
-              onClick={handleExportMessages}
-            >
-              <Download className="h-4 w-4" />
-              <span className="hidden sm:inline">Export</span>
-            </Button>
-          </div>
+  // Filter sidebar component
+  const FilterSidebar = ({ className }: { className?: string }) => (
+    <div className={cn("space-y-6", className)}>
+      {/* Search */}
+      <div>
+        <label className="text-sm font-semibold text-foreground mb-2 block">Search</label>
+        <div className="relative">
+          <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+          <input
+            type="text"
+            placeholder="Search messages..."
+            value={searchQuery}
+            onChange={(e) => setSearchQuery(e.target.value)}
+            className="w-full pl-10 pr-4 py-2 border rounded-lg bg-background focus:outline-none focus:ring-2 focus:ring-primary text-sm"
+          />
         </div>
-
-        {/* Date Range and Search */}
-        <div className="flex flex-col lg:flex-row gap-4 items-start lg:items-center">
-          <DateRangePicker dateRange={dateRange} onDateRangeChange={setDateRange} />
-
-          <div className="flex gap-2 flex-1 w-full lg:w-auto">
-            <div className="relative flex-1 lg:flex-none lg:w-64">
-              <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-              <Input
-                type="text"
-                placeholder="Search messages..."
-                value={searchQuery}
-                onChange={(e) => setSearchQuery(e.target.value)}
-                className="neu-flat pl-10 pr-4 py-2 rounded-xl text-sm bg-transparent border-0"
-              />
-            </div>
-
-            <Button
-              variant="outline"
-              className={cn(
-                "neu-flat border-0 gap-2",
-                activeFiltersCount > 0 && "bg-primary/10 text-primary"
-              )}
-              onClick={() => setShowFilters(!showFilters)}
-            >
-              <Filter className="h-4 w-4" />
-              Filters
-              {activeFiltersCount > 0 && (
-                <span className="h-5 w-5 rounded-full bg-primary text-white text-xs flex items-center justify-center">
-                  {activeFiltersCount}
-                </span>
-              )}
-            </Button>
-          </div>
-        </div>
-
-        {/* Expanded Filters Panel */}
-        {showFilters && (
-          <NeuCard className="p-4">
-            <div className="flex items-center justify-between mb-4">
-              <h3 className="font-semibold text-foreground">Filters</h3>
-              {activeFiltersCount > 0 && (
-                <Button variant="ghost" size="sm" onClick={clearAllFilters} className="text-xs">
-                  <X className="h-3 w-3 mr-1" />
-                  Clear all
-                </Button>
-              )}
-            </div>
-
-            <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-4">
-              {/* Sentiment Filter */}
-              <div>
-                <label className="text-xs font-medium text-muted-foreground mb-1.5 block">Sentiment</label>
-                <Select value={sentimentFilter} onValueChange={setSentimentFilter}>
-                  <SelectTrigger className="neu-flat border-0 h-10">
-                    <SelectValue placeholder="All" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="all">All Sentiments</SelectItem>
-                    <SelectItem value="positive">Positive</SelectItem>
-                    <SelectItem value="neutral">Neutral</SelectItem>
-                    <SelectItem value="negative">Negative</SelectItem>
-                  </SelectContent>
-                </Select>
-              </div>
-
-              {/* Category Filter */}
-              <div>
-                <label className="text-xs font-medium text-muted-foreground mb-1.5 block">Category</label>
-                <Select value={categoryFilter} onValueChange={setCategoryFilter}>
-                  <SelectTrigger className="neu-flat border-0 h-10">
-                    <SelectValue placeholder="All" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="all">All Categories</SelectItem>
-                    {categories?.map((cat) => (
-                      <SelectItem key={cat.id} value={cat.name}>
-                        {cat.name}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </div>
-
-              {/* Rating Filter */}
-              <div>
-                <label className="text-xs font-medium text-muted-foreground mb-1.5 block">Rating</label>
-                <Select value={ratingFilter} onValueChange={setRatingFilter}>
-                  <SelectTrigger className="neu-flat border-0 h-10">
-                    <SelectValue placeholder="All" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="all">All Ratings</SelectItem>
-                    <SelectItem value="5">5 Stars</SelectItem>
-                    <SelectItem value="4">4 Stars</SelectItem>
-                    <SelectItem value="3">3 Stars</SelectItem>
-                    <SelectItem value="2">2 Stars</SelectItem>
-                    <SelectItem value="1">1 Star</SelectItem>
-                  </SelectContent>
-                </Select>
-              </div>
-
-              {/* Response Time Filter */}
-              <div>
-                <label className="text-xs font-medium text-muted-foreground mb-1.5 block">Response Time</label>
-                <Select value={responseTimeFilter} onValueChange={setResponseTimeFilter}>
-                  <SelectTrigger className="neu-flat border-0 h-10">
-                    <SelectValue placeholder="All" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="all">All Times</SelectItem>
-                    <SelectItem value="fast">&lt; 1 second</SelectItem>
-                    <SelectItem value="normal">1-3 seconds</SelectItem>
-                    <SelectItem value="slow">&gt; 3 seconds</SelectItem>
-                  </SelectContent>
-                </Select>
-              </div>
-
-              {/* Time Period Filter */}
-              <div>
-                <label className="text-xs font-medium text-muted-foreground mb-1.5 block">Time of Day</label>
-                <TimePeriodFilter value={timePeriodFilter} onChange={setTimePeriodFilter} />
-              </div>
-            </div>
-          </NeuCard>
-        )}
       </div>
 
-      {/* Messages List */}
-      <NeuCard className="p-0 overflow-hidden">
-        {isLoading ? (
-          <div className="p-8 text-center text-muted-foreground">
-            Loading messages...
-          </div>
-        ) : filteredMessages.length === 0 ? (
-          <div className="p-8 text-center text-muted-foreground">
-            <MessageSquare className="h-10 w-10 mx-auto mb-3 opacity-30" />
-            <p>No messages found</p>
-            {activeFiltersCount > 0 && (
-              <Button variant="link" onClick={clearAllFilters} className="mt-2">
-                Clear filters
-              </Button>
-            )}
-          </div>
-        ) : (
-          <div className="divide-y divide-border">
-            {filteredMessages.map((message) => (
-              <div
-                key={message.id}
-                onClick={() => setSelectedMessage(message.id)}
-                className="p-4 hover:bg-black/5 cursor-pointer transition-colors group touch-manipulation"
-                style={{ minHeight: "72px" }}
-              >
-                <div className="flex items-start gap-3 sm:gap-4">
-                  <div className="h-10 w-10 rounded-full bg-primary/10 flex items-center justify-center flex-shrink-0">
-                    <User className="h-5 w-5 text-primary" />
-                  </div>
+      <Separator />
 
-                  <div className="flex-1 min-w-0">
-                    <div className="flex flex-wrap items-center gap-2 mb-1">
-                      <span className="font-semibold text-foreground text-sm sm:text-base">
-                        Student #{message.studentId}
-                      </span>
-                      <span
-                        className={cn(
-                          "px-2 py-0.5 rounded-full text-xs font-medium border",
-                          getSentimentColor(message.sentiment)
-                        )}
-                      >
-                        {message.sentiment || "neutral"}
-                      </span>
-                      {message.category && (
-                        <span className="px-2 py-0.5 rounded-full text-xs font-medium bg-primary/10 text-primary hidden sm:inline">
-                          {message.category}
+      {/* Sentiment Filter */}
+      <div>
+        <label className="text-sm font-semibold text-foreground mb-3 block">Sentiment</label>
+        <div className="space-y-2">
+          {[
+            { value: "all", label: "All Sentiments", icon: null },
+            { value: "positive", label: "Positive", icon: <ThumbsUp className="h-4 w-4 text-green-500" /> },
+            { value: "neutral", label: "Neutral", icon: <MessageSquare className="h-4 w-4 text-gray-400" /> },
+            { value: "negative", label: "Negative", icon: <ThumbsDown className="h-4 w-4 text-red-500" /> },
+          ].map((option) => (
+            <button
+              key={option.value}
+              onClick={() => setSentimentFilter(option.value)}
+              className={cn(
+                "w-full flex items-center gap-2 px-3 py-2 rounded-lg text-sm transition-colors",
+                sentimentFilter === option.value
+                  ? "bg-primary text-primary-foreground"
+                  : "hover:bg-muted"
+              )}
+            >
+              {option.icon}
+              <span>{option.label}</span>
+            </button>
+          ))}
+        </div>
+      </div>
+
+      <Separator />
+
+      {/* Category Filter */}
+      <div>
+        <label className="text-sm font-semibold text-foreground mb-3 block">Category</label>
+        <div className="space-y-2 max-h-48 overflow-y-auto">
+          <button
+            onClick={() => setCategoryFilter("all")}
+            className={cn(
+              "w-full flex items-center gap-2 px-3 py-2 rounded-lg text-sm transition-colors text-left",
+              categoryFilter === "all"
+                ? "bg-primary text-primary-foreground"
+                : "hover:bg-muted"
+            )}
+          >
+            All Categories
+          </button>
+          {uniqueCategories.map((cat) => (
+            <button
+              key={cat}
+              onClick={() => setCategoryFilter(cat)}
+              className={cn(
+                "w-full flex items-center gap-2 px-3 py-2 rounded-lg text-sm transition-colors text-left",
+                categoryFilter === cat
+                  ? "bg-primary text-primary-foreground"
+                  : "hover:bg-muted"
+              )}
+            >
+              {cat}
+            </button>
+          ))}
+        </div>
+      </div>
+
+      <Separator />
+
+      {/* Response Time Filter */}
+      <div>
+        <label className="text-sm font-semibold text-foreground mb-3 block">Response Time</label>
+        <div className="space-y-2">
+          {[
+            { value: "all", label: "All Times" },
+            { value: "under2s", label: "Under 2 seconds" },
+            { value: "2to5s", label: "2-5 seconds" },
+            { value: "5to10s", label: "5-10 seconds" },
+            { value: "over10s", label: "Over 10 seconds" },
+          ].map((option) => (
+            <button
+              key={option.value}
+              onClick={() => setResponseTimeFilter(option.value)}
+              className={cn(
+                "w-full flex items-center gap-2 px-3 py-2 rounded-lg text-sm transition-colors text-left",
+                responseTimeFilter === option.value
+                  ? "bg-primary text-primary-foreground"
+                  : "hover:bg-muted"
+              )}
+            >
+              {option.label}
+            </button>
+          ))}
+        </div>
+      </div>
+
+      <Separator />
+
+      {/* Time Period Filter */}
+      <div>
+        <label className="text-sm font-semibold text-foreground mb-3 block">Time of Day</label>
+        <div className="space-y-2">
+          {[
+            { value: null, label: "Any Time" },
+            { value: "morning", label: "Morning (6am-12pm)" },
+            { value: "afternoon", label: "Afternoon (12pm-6pm)" },
+            { value: "evening", label: "Evening (6pm-12am)" },
+            { value: "overnight", label: "Overnight (12am-6am)" },
+          ].map((option) => (
+            <button
+              key={option.value || "any"}
+              onClick={() => setTimePeriodFilter(option.value)}
+              className={cn(
+                "w-full flex items-center gap-2 px-3 py-2 rounded-lg text-sm transition-colors text-left",
+                timePeriodFilter === option.value
+                  ? "bg-primary text-primary-foreground"
+                  : "hover:bg-muted"
+              )}
+            >
+              {option.label}
+            </button>
+          ))}
+        </div>
+      </div>
+
+      <Separator />
+
+      {/* Rating Filter */}
+      <div>
+        <label className="text-sm font-semibold text-foreground mb-3 block">Rating</label>
+        <div className="space-y-2">
+          <button
+            onClick={() => setRatingFilter("all")}
+            className={cn(
+              "w-full flex items-center gap-2 px-3 py-2 rounded-lg text-sm transition-colors text-left",
+              ratingFilter === "all"
+                ? "bg-primary text-primary-foreground"
+                : "hover:bg-muted"
+            )}
+          >
+            All Ratings
+          </button>
+          {[5, 4, 3, 2, 1].map((rating) => (
+            <button
+              key={rating}
+              onClick={() => setRatingFilter(String(rating))}
+              className={cn(
+                "w-full flex items-center gap-2 px-3 py-2 rounded-lg text-sm transition-colors text-left",
+                ratingFilter === String(rating)
+                  ? "bg-primary text-primary-foreground"
+                  : "hover:bg-muted"
+              )}
+            >
+              <span className="text-yellow-500">{"★".repeat(rating)}{"☆".repeat(5 - rating)}</span>
+            </button>
+          ))}
+        </div>
+      </div>
+
+      {/* Clear All Button */}
+      {activeFiltersCount > 0 && (
+        <>
+          <Separator />
+          <Button variant="outline" className="w-full" onClick={clearAllFilters}>
+            <X className="h-4 w-4 mr-2" />
+            Clear All Filters
+          </Button>
+        </>
+      )}
+    </div>
+  );
+
+  return (
+    <DashboardLayout>
+      <div className="flex flex-col lg:flex-row gap-6">
+        {/* Permanent Filter Sidebar - Desktop */}
+        <aside className="hidden lg:block w-64 flex-shrink-0">
+          <div className="sticky top-4">
+            <NeuCard className="p-4">
+              <div className="flex items-center justify-between mb-4">
+                <h3 className="font-semibold flex items-center gap-2">
+                  <Filter className="h-4 w-4" />
+                  Filters
+                </h3>
+                {activeFiltersCount > 0 && (
+                  <span className="bg-primary text-primary-foreground text-xs px-2 py-0.5 rounded-full">
+                    {activeFiltersCount}
+                  </span>
+                )}
+              </div>
+              <FilterSidebar />
+            </NeuCard>
+          </div>
+        </aside>
+
+        {/* Main Content */}
+        <main className="flex-1 min-w-0 space-y-4">
+          {/* Navigation Context Breadcrumb */}
+          {hasNavigationContext && sourcePageLabel && (
+            <div className="flex items-center gap-2 p-3 bg-primary/5 rounded-lg">
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={() => navigate(`/${navParams.source}`)}
+                className="gap-2"
+              >
+                <ArrowLeft className="h-4 w-4" />
+                Back to {sourcePageLabel}
+              </Button>
+              <Separator orientation="vertical" className="h-4" />
+              <span className="text-sm text-muted-foreground">
+                Viewing messages from {formatDateRangeForBreadcrumb(dateRange.from, dateRange.to)}
+              </span>
+            </div>
+          )}
+
+          {/* Header */}
+          <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
+            <div>
+              <h1 className="text-2xl sm:text-3xl font-extrabold text-foreground tracking-tight">Messages</h1>
+              <p className="text-sm sm:text-base text-muted-foreground mt-1">
+                View and analyze student conversations
+              </p>
+            </div>
+
+            <div className="flex items-center gap-2">
+              {/* Mobile Filter Toggle */}
+              <Button
+                variant="outline"
+                className="lg:hidden gap-2"
+                onClick={() => setMobileFiltersOpen(true)}
+              >
+                <Filter className="h-4 w-4" />
+                Filters
+                {activeFiltersCount > 0 && (
+                  <span className="bg-primary text-primary-foreground text-xs px-1.5 py-0.5 rounded-full">
+                    {activeFiltersCount}
+                  </span>
+                )}
+              </Button>
+
+              <DateRangePicker dateRange={dateRange} onDateRangeChange={setDateRange} />
+
+              <Button variant="outline" className="gap-2" onClick={handleExportMessages}>
+                <Download className="h-4 w-4" />
+                <span className="hidden sm:inline">Export</span>
+              </Button>
+            </div>
+          </div>
+
+          {/* Applied Filters Summary */}
+          {activeFiltersCount > 0 && (
+            <div className="flex items-center gap-2 flex-wrap p-3 bg-muted/50 rounded-lg">
+              <span className="text-sm font-medium">Active Filters:</span>
+              {sentimentFilter !== "all" && (
+                <Button
+                  variant="secondary"
+                  size="sm"
+                  onClick={() => setSentimentFilter("all")}
+                  className="gap-1 h-7"
+                >
+                  Sentiment: {sentimentFilter}
+                  <X className="h-3 w-3" />
+                </Button>
+              )}
+              {categoryFilter !== "all" && (
+                <Button
+                  variant="secondary"
+                  size="sm"
+                  onClick={() => setCategoryFilter("all")}
+                  className="gap-1 h-7"
+                >
+                  Category: {categoryFilter}
+                  <X className="h-3 w-3" />
+                </Button>
+              )}
+              {ratingFilter !== "all" && (
+                <Button
+                  variant="secondary"
+                  size="sm"
+                  onClick={() => setRatingFilter("all")}
+                  className="gap-1 h-7"
+                >
+                  Rating: {ratingFilter} stars
+                  <X className="h-3 w-3" />
+                </Button>
+              )}
+              {responseTimeFilter !== "all" && (
+                <Button
+                  variant="secondary"
+                  size="sm"
+                  onClick={() => setResponseTimeFilter("all")}
+                  className="gap-1 h-7"
+                >
+                  Response: {responseTimeFilter}
+                  <X className="h-3 w-3" />
+                </Button>
+              )}
+              {timePeriodFilter && (
+                <Button
+                  variant="secondary"
+                  size="sm"
+                  onClick={() => setTimePeriodFilter(null)}
+                  className="gap-1 h-7"
+                >
+                  Time: {timePeriodFilter}
+                  <X className="h-3 w-3" />
+                </Button>
+              )}
+              <Button variant="ghost" size="sm" onClick={clearAllFilters} className="h-7">
+                Clear All
+              </Button>
+            </div>
+          )}
+
+          {/* Results Count */}
+          <p className="text-sm text-muted-foreground">
+            Showing {filteredMessages.length} of {total.toLocaleString()} messages
+            {activeFiltersCount > 0 && " (filtered)"}
+          </p>
+
+          {/* Message List */}
+          <div className="space-y-3">
+            {isLoading ? (
+              <div className="flex items-center justify-center py-12">
+                <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary" />
+              </div>
+            ) : filteredMessages.length === 0 ? (
+              <NeuCard className="text-center py-12">
+                <MessageSquare className="h-12 w-12 mx-auto text-muted-foreground mb-4" />
+                <p className="text-lg font-medium">No messages found</p>
+                <p className="text-muted-foreground">Try adjusting your filters or date range</p>
+                {activeFiltersCount > 0 && (
+                  <Button variant="outline" className="mt-4" onClick={clearAllFilters}>
+                    Clear All Filters
+                  </Button>
+                )}
+              </NeuCard>
+            ) : (
+              filteredMessages.map((message) => (
+                <NeuCard
+                  key={message.id}
+                  className="cursor-pointer hover:shadow-lg transition-all"
+                  onClick={() => setSelectedMessage(message.id)}
+                >
+                  <div className="flex flex-col sm:flex-row sm:items-start justify-between gap-3">
+                    <div className="flex-1 min-w-0">
+                      <div className="flex items-center gap-2 mb-2">
+                        {getSentimentIcon(message.sentiment)}
+                        <span className="text-xs text-muted-foreground">
+                          {formatDate(message.createdAt)}
                         </span>
+                        {message.category && (
+                          <span className="px-2 py-0.5 rounded-full text-xs bg-primary/10 text-primary">
+                            {message.category}
+                          </span>
+                        )}
+                      </div>
+                      <p className="text-sm font-medium line-clamp-2">{message.query}</p>
+                      {message.response && (
+                        <p className="text-sm text-muted-foreground mt-1 line-clamp-1">
+                          {message.response}
+                        </p>
                       )}
                     </div>
-
-                    <p className="text-foreground line-clamp-2 mb-2 text-sm sm:text-base">
-                      {message.query}
-                    </p>
-
-                    <div className="flex flex-wrap items-center gap-2 sm:gap-4 text-xs text-muted-foreground">
-                      <span className="flex items-center gap-1">
-                        <Clock className="h-3 w-3" />
-                        {formatDate(message.createdAt)}
-                      </span>
+                    <div className="flex items-center gap-4 text-sm flex-shrink-0">
                       {message.responseTimeMs && (
-                        <span>{formatResponseTime(message.responseTimeMs)}</span>
+                        <div className="flex items-center gap-1 text-muted-foreground">
+                          <Clock className="h-3 w-3" />
+                          <span>{formatResponseTime(message.responseTimeMs)}</span>
+                        </div>
                       )}
                       {message.rating && (
-                        <span className="flex items-center gap-1">
-                          <Star className="h-3 w-3 text-yellow-500" />
-                          {message.rating}/5
+                        <span className="text-yellow-500">
+                          {"★".repeat(message.rating)}
                         </span>
                       )}
+                      <ChevronRight className="h-4 w-4 text-muted-foreground" />
                     </div>
                   </div>
-
-                  <div className="flex-shrink-0">
-                    {getSentimentIcon(message.sentiment)}
-                  </div>
-                </div>
-              </div>
-            ))}
+                </NeuCard>
+              ))
+            )}
           </div>
-        )}
 
-        {/* Pagination */}
-        {totalPages > 1 && (
-          <div className="flex flex-col sm:flex-row items-center justify-between p-4 border-t border-border gap-3">
-            <span className="text-sm text-muted-foreground">
-              Showing {page * limit + 1} - {Math.min((page + 1) * limit, total)} of {total} messages
-            </span>
-            <div className="flex gap-2">
+          {/* Pagination */}
+          {totalPages > 1 && (
+            <div className="flex items-center justify-center gap-2 pt-4">
               <Button
                 variant="outline"
                 size="sm"
-                onClick={() => setPage((p) => Math.max(0, p - 1))}
+                onClick={() => setPage(Math.max(0, page - 1))}
                 disabled={page === 0}
-                className="neu-flat border-0 h-10"
-                style={{ minWidth: "44px" }}
               >
                 <ChevronLeft className="h-4 w-4" />
+                Previous
               </Button>
-              <span className="flex items-center px-3 text-sm">
+              <span className="text-sm text-muted-foreground px-4">
                 Page {page + 1} of {totalPages}
               </span>
               <Button
                 variant="outline"
                 size="sm"
-                onClick={() => setPage((p) => Math.min(totalPages - 1, p + 1))}
+                onClick={() => setPage(page + 1)}
                 disabled={page >= totalPages - 1}
-                className="neu-flat border-0 h-10"
-                style={{ minWidth: "44px" }}
               >
+                Next
                 <ChevronRight className="h-4 w-4" />
               </Button>
             </div>
-          </div>
-        )}
-      </NeuCard>
+          )}
+        </main>
+      </div>
 
-      {/* Message Detail Dialog */}
-      <Dialog open={selectedMessage !== null} onOpenChange={() => setSelectedMessage(null)}>
-        <DialogContent className="max-w-2xl max-h-[90vh] overflow-hidden flex flex-col">
+      {/* Mobile Filters Dialog */}
+      <Dialog open={mobileFiltersOpen} onOpenChange={setMobileFiltersOpen}>
+        <DialogContent className="max-w-md max-h-[80vh] overflow-hidden flex flex-col">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <Filter className="h-5 w-5" />
+              Filters
+            </DialogTitle>
+          </DialogHeader>
+          <ScrollArea className="flex-1 pr-4">
+            <FilterSidebar />
+          </ScrollArea>
+          <div className="pt-4 border-t">
+            <Button className="w-full" onClick={() => setMobileFiltersOpen(false)}>
+              Apply Filters
+            </Button>
+          </div>
+        </DialogContent>
+      </Dialog>
+
+      {/* Message Detail Modal */}
+      <Dialog open={selectedMessage !== null} onOpenChange={(open) => !open && setSelectedMessage(null)}>
+        <DialogContent className="max-w-3xl max-h-[90vh] overflow-hidden flex flex-col">
           <DialogHeader>
             <DialogTitle>Message Details</DialogTitle>
             <DialogDescription>
-              Full conversation details and student information
+              Complete conversation and student context
             </DialogDescription>
           </DialogHeader>
-
-          <ScrollArea className="flex-1 -mx-6 px-6">
-            {isLoadingDetail ? (
-              <div className="p-4 text-center text-muted-foreground">
-                Loading...
-              </div>
-            ) : messageDetail ? (
-              <div className="space-y-6 pb-4">
+          
+          {isLoadingDetail ? (
+            <div className="flex items-center justify-center py-12">
+              <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary" />
+            </div>
+          ) : messageDetail ? (
+            <ScrollArea className="flex-1 pr-4">
+              <div className="space-y-6">
                 {/* Student Info */}
-                {messageDetail.student && (
-                  <div className="flex items-center justify-between p-4 bg-muted/50 rounded-xl">
-                    <div className="flex items-center gap-4">
-                      <div className="h-12 w-12 rounded-full bg-primary/10 flex items-center justify-center">
-                        <User className="h-6 w-6 text-primary" />
-                      </div>
-                      <div>
-                        <h4 className="font-semibold text-foreground">
-                          {messageDetail.student.name || `Student #${messageDetail.student.studentId}`}
-                        </h4>
-                        <p className="text-sm text-muted-foreground flex items-center gap-2">
-                          <Phone className="h-3 w-3" />
-                          {messageDetail.student.email || "No phone on file"}
-                          {messageDetail.student.department && (
-                            <span>• {messageDetail.student.department}</span>
-                          )}
-                        </p>
-                      </div>
+                <div className="flex items-center justify-between p-4 bg-primary/5 rounded-lg">
+                  <div className="flex items-center gap-3">
+                    <div className="h-12 w-12 rounded-full bg-primary/20 flex items-center justify-center">
+                      <User className="h-6 w-6 text-primary" />
                     </div>
-                    <Button
-                      variant="outline"
-                      size="sm"
-                      className="gap-2"
-                      onClick={() => setShowConversationHistory(true)}
-                    >
-                      <History className="h-4 w-4" />
-                      History
-                    </Button>
+                    <div>
+                      <StudentLink
+                        studentId={messageDetail.message.studentId}
+                        studentName={messageDetail.student?.name}
+                        showIcon={false}
+                        context={{
+                          fromPage: '/messages',
+                          dateRange: dateRange,
+                        }}
+                        className="text-base"
+                      />
+                      <p className="text-sm text-muted-foreground">{messageDetail.student?.studentId}</p>
+                    </div>
                   </div>
-                )}
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={() => {
+                      setSelectedMessage(null);
+                      navigate(`/students?id=${messageDetail.message.studentId}&from=${dateRange.from.toISOString().split('T')[0]}&to=${dateRange.to.toISOString().split('T')[0]}&source=messages`);
+                    }}
+                  >
+                    <ExternalLink className="h-4 w-4 mr-2" />
+                    View Profile
+                  </Button>
+                </div>
 
                 {/* Query */}
                 <div>
-                  <h4 className="font-semibold text-foreground mb-2">Student Query</h4>
-                  <div className="p-4 bg-primary/5 rounded-xl border border-primary/10">
-                    <p className="text-foreground">{messageDetail.message.query}</p>
-                  </div>
+                  <p className="text-xs font-semibold text-muted-foreground uppercase mb-2">Student Query</p>
+                  <p className="p-4 bg-muted rounded-lg">{messageDetail.message.query}</p>
                 </div>
 
                 {/* Response */}
                 <div>
-                  <h4 className="font-semibold text-foreground mb-2">Bot Response</h4>
-                  <div className="p-4 bg-muted/50 rounded-xl">
-                    <p className="text-foreground whitespace-pre-wrap">{messageDetail.message.response}</p>
-                  </div>
+                  <p className="text-xs font-semibold text-muted-foreground uppercase mb-2">Bot Response</p>
+                  <p className="p-4 bg-primary/5 rounded-lg border-l-4 border-primary">
+                    {messageDetail.message.response}
+                  </p>
                 </div>
 
                 {/* Metadata */}
-                <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-                  <div className="p-3 bg-muted/30 rounded-lg text-center">
-                    <p className="text-xs text-muted-foreground uppercase">Sentiment</p>
+                <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+                  <div className="p-3 bg-muted rounded-lg text-center">
+                    <p className="text-xs text-muted-foreground">Category</p>
+                    <CategoryLink
+                      category={messageDetail.message.category || "General"}
+                      context={{
+                        fromPage: '/messages',
+                        dateRange: dateRange,
+                      }}
+                    />
+                  </div>
+                  <div className="p-3 bg-muted rounded-lg text-center">
+                    <p className="text-xs text-muted-foreground">Response Time</p>
+                    <p className="font-medium text-sm">{formatResponseTime(messageDetail.message.responseTimeMs || 0)}</p>
+                  </div>
+                  <div className="p-3 bg-muted rounded-lg text-center">
+                    <p className="text-xs text-muted-foreground">Sentiment</p>
                     <p className={cn(
-                      "font-semibold capitalize",
-                      messageDetail.message.sentiment === "positive" ? "text-green-600" :
-                      messageDetail.message.sentiment === "negative" ? "text-red-600" : "text-gray-600"
+                      "font-medium text-sm capitalize",
+                      messageDetail.message.sentiment === "positive" && "text-green-600",
+                      messageDetail.message.sentiment === "negative" && "text-red-600"
                     )}>
-                      {messageDetail.message.sentiment || "Neutral"}
+                      {messageDetail.message.sentiment}
                     </p>
                   </div>
-                  <div className="p-3 bg-muted/30 rounded-lg text-center">
-                    <p className="text-xs text-muted-foreground uppercase">Category</p>
-                    <p className="font-semibold text-foreground">
-                      {messageDetail.message.category || "General"}
-                    </p>
-                  </div>
-                  <div className="p-3 bg-muted/30 rounded-lg text-center">
-                    <p className="text-xs text-muted-foreground uppercase">Response Time</p>
-                    <p className="font-semibold text-foreground">
-                      {messageDetail.message.responseTimeMs
-                        ? formatResponseTime(messageDetail.message.responseTimeMs)
-                        : "-"}
-                    </p>
-                  </div>
-                  <div className="p-3 bg-muted/30 rounded-lg text-center">
-                    <p className="text-xs text-muted-foreground uppercase">Rating</p>
-                    <p className="font-semibold text-foreground flex items-center justify-center gap-1">
-                      <Star className="h-4 w-4 text-yellow-500" />
-                      {messageDetail.message.rating || "-"}/5
-                    </p>
+                  <div className="p-3 bg-muted rounded-lg text-center">
+                    <p className="text-xs text-muted-foreground">Timestamp</p>
+                    <p className="font-medium text-sm">{format(new Date(messageDetail.message.createdAt), "MMM d, h:mm a")}</p>
                   </div>
                 </div>
 
-                {/* Actions */}
-                <div className="flex gap-3 pt-4 border-t">
-                  <Button
-                    variant="outline"
-                    className="flex-1 gap-2"
-                    onClick={() => {
-                      toast.info("Send message feature", {
-                        description: "This would open a messaging interface to contact the student",
-                      });
-                    }}
-                  >
-                    <Phone className="h-4 w-4" />
-                    Send Message
-                  </Button>
-                  <Button
-                    variant="outline"
-                    className="flex-1 gap-2"
-                    onClick={() => {
-                      // Export single message
-                      const data = `Student: ${messageDetail.student?.name || messageDetail.student?.studentId}\nQuery: ${messageDetail.message.query}\nResponse: ${messageDetail.message.response}\nSentiment: ${messageDetail.message.sentiment}\nCategory: ${messageDetail.message.category}\nResponse Time: ${formatResponseTime(messageDetail.message.responseTimeMs || 0)}\nRating: ${messageDetail.message.rating || "-"}/5`;
-                      const blob = new Blob([data], { type: "text/plain" });
-                      const url = URL.createObjectURL(blob);
-                      const a = document.createElement("a");
-                      a.href = url;
-                      a.download = `message-${messageDetail.message.id}.txt`;
-                      a.click();
-                      URL.revokeObjectURL(url);
-                      toast.success("Message exported");
-                    }}
-                  >
-                    <Download className="h-4 w-4" />
-                    Export
-                  </Button>
-                </div>
-              </div>
-            ) : null}
-          </ScrollArea>
-        </DialogContent>
-      </Dialog>
-
-      {/* Conversation History Dialog */}
-      <Dialog open={showConversationHistory} onOpenChange={setShowConversationHistory}>
-        <DialogContent className="max-w-2xl max-h-[80vh] overflow-hidden flex flex-col">
-          <DialogHeader>
-            <DialogTitle className="flex items-center gap-2">
-              <History className="h-5 w-5" />
-              Conversation History
-            </DialogTitle>
-            <DialogDescription>
-              All interactions from this student
-            </DialogDescription>
-          </DialogHeader>
-
-          <ScrollArea className="flex-1 -mx-6 px-6">
-            {isLoadingHistory ? (
-              <div className="p-4 text-center text-muted-foreground">
-                Loading history...
-              </div>
-            ) : conversationHistory && conversationHistory.messages.length > 0 ? (
-              <div className="space-y-4">
-                {conversationHistory.messages
-                  .filter((m) => m.studentId === messageDetail?.message.studentId)
-                  .map((message) => (
-                    <div
-                      key={message.id}
-                      className={cn(
-                        "p-4 rounded-xl border",
-                        message.id === selectedMessage
-                          ? "bg-primary/10 border-primary"
-                          : "bg-muted/30 border-transparent"
-                      )}
-                    >
-                      <div className="flex items-center justify-between mb-2">
-                        <span className={cn(
-                          "px-2 py-0.5 rounded-full text-xs font-medium",
-                          getSentimentColor(message.sentiment)
-                        )}>
-                          {message.sentiment || "neutral"}
+                {/* Rating */}
+                {messageDetail.message.rating && (
+                  <div className="p-3 bg-yellow-50 dark:bg-yellow-950/30 rounded-lg">
+                    <p className="text-xs text-muted-foreground mb-1">Student Rating</p>
+                    <div className="flex items-center gap-1">
+                      {[1, 2, 3, 4, 5].map((star) => (
+                        <span
+                          key={star}
+                          className={cn(
+                            "text-lg",
+                            star <= messageDetail.message.rating! ? "text-yellow-500" : "text-gray-300"
+                          )}
+                        >
+                          ★
                         </span>
-                        <span className="text-xs text-muted-foreground">
-                          {formatDate(message.createdAt)}
-                        </span>
-                      </div>
-                      <p className="text-sm text-foreground line-clamp-2">{message.query}</p>
+                      ))}
+                      <span className="ml-2 text-sm font-medium">{messageDetail.message.rating}/5</span>
                     </div>
-                  ))}
+                  </div>
+                )}
+
+                {/* Student History Section */}
+                <div className="border rounded-lg overflow-hidden">
+                  <button
+                    className="w-full p-4 flex items-center justify-between hover:bg-muted/50 transition-colors"
+                    onClick={() => setShowConversationHistory(!showConversationHistory)}
+                  >
+                    <div className="flex items-center gap-2">
+                      <History className="h-5 w-5 text-primary" />
+                      <span className="font-semibold">Student Conversation History</span>
+                    </div>
+                    <ChevronRight className={cn(
+                      "h-5 w-5 transition-transform",
+                      showConversationHistory && "rotate-90"
+                    )} />
+                  </button>
+                  
+                  {showConversationHistory && (
+                    <div className="border-t p-4">
+                      {isLoadingHistory ? (
+                        <div className="flex items-center justify-center py-8">
+                          <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-primary" />
+                        </div>
+                      ) : studentConversations.length === 0 ? (
+                        <p className="text-center text-muted-foreground py-4">
+                          No other conversations found for this student
+                        </p>
+                      ) : (
+                        <div className="space-y-4">
+                          {studentConversations.slice(0, 10).map((msg) => (
+                            <div
+                              key={msg.id}
+                              className={cn(
+                                "border rounded-lg overflow-hidden",
+                                msg.id === selectedMessage && "ring-2 ring-primary"
+                              )}
+                            >
+                              {/* Question */}
+                              <div className="p-3 bg-muted/50">
+                                <div className="flex items-center justify-between mb-2">
+                                  <span className="text-xs font-semibold text-muted-foreground uppercase">Query</span>
+                                  <span className="text-xs text-muted-foreground">
+                                    {format(new Date(msg.createdAt), "MMM d, yyyy h:mm a")}
+                                  </span>
+                                </div>
+                                <p className="text-sm">{msg.query}</p>
+                              </div>
+                              
+                              {/* Response */}
+                              <div className="p-3 bg-primary/5 border-l-4 border-primary">
+                                <span className="text-xs font-semibold text-muted-foreground uppercase">Response</span>
+                                <p className="text-sm mt-1">{msg.response}</p>
+                              </div>
+                              
+                              {/* Metadata */}
+                              <div className="p-2 bg-muted/30 flex items-center gap-4 text-xs flex-wrap">
+                                {msg.category && (
+                                  <CategoryLink
+                                    category={msg.category}
+                                    context={{ fromPage: "/messages", dateRange }}
+                                  />
+                                )}
+                                <span className={cn(
+                                  "capitalize",
+                                  msg.sentiment === "positive" && "text-green-600",
+                                  msg.sentiment === "negative" && "text-red-600"
+                                )}>
+                                  {msg.sentiment}
+                                </span>
+                                {msg.responseTimeMs && (
+                                  <span className="text-muted-foreground">
+                                    {formatResponseTime(msg.responseTimeMs)}
+                                  </span>
+                                )}
+                                {msg.rating && (
+                                  <span className="text-yellow-500">
+                                    {"★".repeat(msg.rating)}{"☆".repeat(5 - msg.rating)}
+                                  </span>
+                                )}
+                              </div>
+                            </div>
+                          ))}
+                          
+                          {studentConversations.length > 10 && (
+                            <Button
+                              variant="outline"
+                              className="w-full"
+                              onClick={() => {
+                                setSelectedMessage(null);
+                                navigate(`/students?id=${messageDetail.message.studentId}&source=messages`);
+                              }}
+                            >
+                              View Complete Student Profile
+                              <ExternalLink className="h-4 w-4 ml-2" />
+                            </Button>
+                          )}
+                        </div>
+                      )}
+                    </div>
+                  )}
+                </div>
               </div>
-            ) : (
-              <div className="p-8 text-center text-muted-foreground">
-                <History className="h-8 w-8 mx-auto mb-2 opacity-30" />
-                <p>No conversation history found</p>
-              </div>
-            )}
-          </ScrollArea>
+            </ScrollArea>
+          ) : null}
         </DialogContent>
       </Dialog>
     </DashboardLayout>
