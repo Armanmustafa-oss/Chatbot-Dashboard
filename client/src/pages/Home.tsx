@@ -99,10 +99,29 @@ export default function Home() {
     return Math.round(((kpiData.positiveCount || 0) / kpiData.totalMessages) * 100);
   }, [kpiData]);
 
+  // Calculate cost savings breakdown
+  const costSavingsData = useMemo(() => {
+    const totalMessages = kpiData?.totalMessages || 0;
+    const avgMinutesPerQuery = 5;
+    const hourlyRate = 25;
+    const minutesSaved = totalMessages * avgMinutesPerQuery;
+    const hoursSaved = minutesSaved / 60;
+    const costSaved = hoursSaved * hourlyRate;
+    
+    return {
+      totalMessages,
+      avgMinutesPerQuery,
+      hourlyRate,
+      minutesSaved,
+      hoursSaved: hoursSaved.toFixed(1),
+      costSaved: Math.round(costSaved),
+    };
+  }, [kpiData]);
+
   const presetRanges = [
-    { label: "7 Days", days: 7 },
-    { label: "30 Days", days: 30 },
-    { label: "90 Days", days: 90 },
+    { label: "7D", fullLabel: "7 Days", days: 7 },
+    { label: "30D", fullLabel: "30 Days", days: 30 },
+    { label: "90D", fullLabel: "90 Days", days: 90 },
   ];
 
   const setPresetRange = (days: number) => {
@@ -129,14 +148,19 @@ export default function Home() {
 
   return (
     <DashboardLayout>
-      {/* Header Section */}
-      <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
+      {/* Header Section - Mobile Responsive */}
+      <div className="flex flex-col gap-4">
         <div>
-          <h1 className="text-3xl font-extrabold text-foreground tracking-tight">Dashboard Overview</h1>
-          <p className="text-muted-foreground mt-1">Welcome back, Administrator. Here's what's happening.</p>
+          <h1 className="text-2xl sm:text-3xl font-extrabold text-foreground tracking-tight">
+            Dashboard Overview
+          </h1>
+          <p className="text-sm sm:text-base text-muted-foreground mt-1">
+            Welcome back, Administrator. Here's what's happening.
+          </p>
         </div>
 
-        <div className="flex gap-3 items-center">
+        {/* Controls - Stack on mobile */}
+        <div className="flex flex-wrap gap-2 sm:gap-3 items-center">
           {/* Preset Range Buttons */}
           <div className="neu-flat px-1 p-1 rounded-xl flex items-center gap-1">
             {presetRanges.map((range) => (
@@ -144,13 +168,15 @@ export default function Home() {
                 key={range.days}
                 onClick={() => setPresetRange(range.days)}
                 className={cn(
-                  "px-4 py-2 rounded-lg text-sm font-semibold transition-all",
+                  "px-3 sm:px-4 py-2 rounded-lg text-xs sm:text-sm font-semibold transition-all touch-manipulation",
                   currentDays === range.days
                     ? "bg-primary text-white shadow-md"
                     : "text-muted-foreground hover:text-foreground"
                 )}
+                style={{ minHeight: "44px" }}
               >
-                {range.label}
+                <span className="sm:hidden">{range.label}</span>
+                <span className="hidden sm:inline">{range.fullLabel}</span>
               </button>
             ))}
           </div>
@@ -158,14 +184,31 @@ export default function Home() {
           {/* Custom Date Range Picker */}
           <Popover>
             <PopoverTrigger asChild>
-              <Button variant="outline" className="neu-flat border-0 h-12 px-4 rounded-xl gap-2">
+              <Button 
+                variant="outline" 
+                className="neu-flat border-0 h-11 sm:h-12 px-3 sm:px-4 rounded-xl gap-2"
+                style={{ minHeight: "44px" }}
+              >
                 <CalendarIcon className="h-4 w-4" />
-                <span className="hidden sm:inline text-sm">
+                <span className="text-xs sm:text-sm">
                   {format(dateRange.from, "MMM d")} - {format(dateRange.to, "MMM d")}
                 </span>
               </Button>
             </PopoverTrigger>
-            <PopoverContent className="w-auto p-0" align="end">
+            <PopoverContent className="w-auto p-0" align="start">
+              <Calendar
+                initialFocus
+                mode="range"
+                defaultMonth={dateRange.from}
+                selected={{ from: dateRange.from, to: dateRange.to }}
+                onSelect={(range) => {
+                  if (range?.from && range?.to) {
+                    setDateRange({ from: range.from, to: range.to });
+                  }
+                }}
+                numberOfMonths={1}
+                className="sm:hidden"
+              />
               <Calendar
                 initialFocus
                 mode="range"
@@ -177,62 +220,93 @@ export default function Home() {
                   }
                 }}
                 numberOfMonths={2}
+                className="hidden sm:block"
               />
             </PopoverContent>
           </Popover>
 
           <Button
             variant="outline"
-            className="neu-flat border-0 h-12 w-12 p-0 rounded-xl"
+            className="neu-flat border-0 h-11 sm:h-12 w-11 sm:w-12 p-0 rounded-xl"
             onClick={handleExport}
+            style={{ minHeight: "44px", minWidth: "44px" }}
           >
             <Download className="h-5 w-5 text-muted-foreground" />
           </Button>
         </div>
       </div>
 
-      {/* KPI Stats Grid */}
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+      {/* KPI Stats Grid - Interactive with Drill-Down */}
+      <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-6">
         <NeuStat
           label="Total Messages"
           value={isLoadingKPI ? "..." : (kpiData?.totalMessages || 0).toLocaleString()}
           icon={MessageCircle}
           trend="+12.5%"
+          tooltipContent="Total number of student queries handled by the chatbot in the selected period."
         />
         <NeuStat
           label="Avg Response Time"
           value={isLoadingKPI ? "..." : `${Math.round(kpiData?.avgResponseTime || 0)}ms`}
           icon={Clock}
           trend="-0.4s"
+          tooltipContent="Average time taken to generate a response to student queries."
         />
         <NeuStat
           label="Satisfaction Score"
           value={isLoadingKPI ? "..." : `${positivePercentage}%`}
           icon={ThumbsUp}
           trend="+2%"
+          tooltipContent="Percentage of interactions rated as positive by sentiment analysis."
+          drillDown={{
+            title: "Satisfaction Score Breakdown",
+            description: "Detailed analysis of student satisfaction metrics",
+            breakdown: [
+              { label: "Positive Interactions", value: kpiData?.positiveCount || 0, description: "Students satisfied with response" },
+              { label: "Neutral Interactions", value: kpiData?.neutralCount || 0, description: "No strong sentiment detected" },
+              { label: "Negative Interactions", value: kpiData?.negativeCount || 0, description: "Students unsatisfied with response" },
+            ],
+            formula: "Satisfaction = (Positive / Total) × 100",
+          }}
         />
         <NeuStat
           label="Est. Cost Saved"
-          value={isLoadingKPI ? "..." : `$${Math.round((kpiData?.totalMessages || 0) * 0.5).toLocaleString()}`}
+          value={isLoadingKPI ? "..." : `$${costSavingsData.costSaved.toLocaleString()}`}
           icon={DollarSign}
           trend="+15%"
+          tooltipContent="Estimated cost savings from automated responses vs. human staff handling."
+          drillDown={{
+            title: "Cost Savings Calculation",
+            description: "How we calculate the estimated cost savings from automation",
+            breakdown: [
+              { label: "Queries Automated", value: costSavingsData.totalMessages.toLocaleString(), description: "Total messages handled by bot" },
+              { label: "Minutes Saved", value: costSavingsData.minutesSaved.toLocaleString(), description: `${costSavingsData.avgMinutesPerQuery} min × ${costSavingsData.totalMessages} queries` },
+              { label: "Hours Saved", value: costSavingsData.hoursSaved, description: "Total staff hours saved" },
+              { label: "Cost Saved", value: `$${costSavingsData.costSaved.toLocaleString()}`, description: `${costSavingsData.hoursSaved} hrs × $${costSavingsData.hourlyRate}/hr` },
+            ],
+            formula: "Cost Saved = (Queries × Avg Minutes) ÷ 60 × Hourly Rate",
+            assumptions: [
+              { label: "Avg Time per Query", value: `${costSavingsData.avgMinutesPerQuery} minutes` },
+              { label: "Staff Hourly Rate", value: `$${costSavingsData.hourlyRate}/hour` },
+            ],
+          }}
         />
       </div>
 
-      {/* Main Charts Section */}
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
+      {/* Main Charts Section - Responsive */}
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-4 sm:gap-8">
         {/* Message Volume Trend (Large Area Chart) */}
-        <NeuCard className="lg:col-span-2 min-h-[400px] flex flex-col">
-          <div className="flex justify-between items-center mb-6">
+        <NeuCard className="lg:col-span-2 min-h-[300px] sm:min-h-[400px] flex flex-col">
+          <div className="flex justify-between items-center mb-4 sm:mb-6">
             <div>
-              <h3 className="text-lg font-bold text-foreground">Message Volume Trend</h3>
-              <p className="text-sm text-muted-foreground">Daily student interactions over time</p>
+              <h3 className="text-base sm:text-lg font-bold text-foreground">Message Volume Trend</h3>
+              <p className="text-xs sm:text-sm text-muted-foreground">Daily student interactions over time</p>
             </div>
             <div className="p-2 bg-primary/10 rounded-lg">
-              <Activity className="h-5 w-5 text-primary" />
+              <Activity className="h-4 w-4 sm:h-5 sm:w-5 text-primary" />
             </div>
           </div>
-          <div className="flex-1 w-full min-h-[300px]">
+          <div className="flex-1 w-full min-h-[200px] sm:min-h-[300px]">
             {isLoadingDaily ? (
               <div className="h-full flex items-center justify-center text-muted-foreground">
                 Loading...
@@ -251,13 +325,15 @@ export default function Home() {
                     dataKey="date"
                     axisLine={false}
                     tickLine={false}
-                    tick={{ fill: "var(--color-muted-foreground)", fontSize: 12 }}
+                    tick={{ fill: "var(--color-muted-foreground)", fontSize: 10 }}
                     dy={10}
+                    interval="preserveStartEnd"
                   />
                   <YAxis
                     axisLine={false}
                     tickLine={false}
-                    tick={{ fill: "var(--color-muted-foreground)", fontSize: 12 }}
+                    tick={{ fill: "var(--color-muted-foreground)", fontSize: 10 }}
+                    width={40}
                   />
                   <Tooltip
                     contentStyle={{
@@ -271,7 +347,7 @@ export default function Home() {
                     type="monotone"
                     dataKey="messages"
                     stroke="var(--color-primary)"
-                    strokeWidth={3}
+                    strokeWidth={2}
                     fillOpacity={1}
                     fill="url(#colorMessages)"
                   />
@@ -282,14 +358,14 @@ export default function Home() {
         </NeuCard>
 
         {/* Sentiment Analysis (Pie Chart) */}
-        <NeuCard className="flex flex-col">
-          <div className="flex justify-between items-center mb-6">
+        <NeuCard className="flex flex-col min-h-[300px]">
+          <div className="flex justify-between items-center mb-4 sm:mb-6">
             <div>
-              <h3 className="text-lg font-bold text-foreground">Sentiment Analysis</h3>
-              <p className="text-sm text-muted-foreground">Student satisfaction breakdown</p>
+              <h3 className="text-base sm:text-lg font-bold text-foreground">Sentiment Analysis</h3>
+              <p className="text-xs sm:text-sm text-muted-foreground">Student satisfaction breakdown</p>
             </div>
           </div>
-          <div className="flex-1 w-full min-h-[250px] relative">
+          <div className="flex-1 w-full min-h-[200px] relative">
             {isLoadingKPI ? (
               <div className="h-full flex items-center justify-center text-muted-foreground">
                 Loading...
@@ -302,8 +378,8 @@ export default function Home() {
                       data={sentimentData}
                       cx="50%"
                       cy="50%"
-                      innerRadius={60}
-                      outerRadius={80}
+                      innerRadius={50}
+                      outerRadius={70}
                       paddingAngle={5}
                       dataKey="value"
                       stroke="none"
@@ -325,8 +401,8 @@ export default function Home() {
                 </ResponsiveContainer>
                 {/* Center Text Overlay */}
                 <div className="absolute inset-0 flex flex-col items-center justify-center pointer-events-none pb-8">
-                  <span className="text-3xl font-bold text-foreground">{positivePercentage}%</span>
-                  <span className="text-xs text-muted-foreground font-semibold uppercase">Positive</span>
+                  <span className="text-2xl sm:text-3xl font-bold text-foreground">{positivePercentage}%</span>
+                  <span className="text-[10px] sm:text-xs text-muted-foreground font-semibold uppercase">Positive</span>
                 </div>
               </>
             )}
@@ -334,20 +410,20 @@ export default function Home() {
         </NeuCard>
       </div>
 
-      {/* Secondary Charts Row */}
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
+      {/* Secondary Charts Row - Responsive */}
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 sm:gap-8">
         {/* Peak Messaging Times (Bar Chart) */}
-        <NeuCard className="min-h-[400px] flex flex-col">
-          <div className="flex justify-between items-center mb-6">
+        <NeuCard className="min-h-[300px] sm:min-h-[400px] flex flex-col">
+          <div className="flex justify-between items-center mb-4 sm:mb-6">
             <div>
-              <h3 className="text-lg font-bold text-foreground">Peak Messaging Times</h3>
-              <p className="text-sm text-muted-foreground">Hourly activity distribution (24h)</p>
+              <h3 className="text-base sm:text-lg font-bold text-foreground">Peak Messaging Times</h3>
+              <p className="text-xs sm:text-sm text-muted-foreground">Hourly activity distribution (24h)</p>
             </div>
             <div className="p-2 bg-accent/10 rounded-lg">
-              <TrendingUp className="h-5 w-5 text-accent" />
+              <TrendingUp className="h-4 w-4 sm:h-5 sm:w-5 text-accent" />
             </div>
           </div>
-          <div className="flex-1 w-full min-h-[300px]">
+          <div className="flex-1 w-full min-h-[200px] sm:min-h-[300px]">
             {isLoadingHourly ? (
               <div className="h-full flex items-center justify-center text-muted-foreground">
                 Loading...
@@ -360,13 +436,14 @@ export default function Home() {
                     dataKey="hour"
                     axisLine={false}
                     tickLine={false}
-                    tick={{ fill: "var(--color-muted-foreground)", fontSize: 10 }}
-                    interval={2}
+                    tick={{ fill: "var(--color-muted-foreground)", fontSize: 9 }}
+                    interval={3}
                   />
                   <YAxis
                     axisLine={false}
                     tickLine={false}
-                    tick={{ fill: "var(--color-muted-foreground)", fontSize: 12 }}
+                    tick={{ fill: "var(--color-muted-foreground)", fontSize: 10 }}
+                    width={35}
                   />
                   <Tooltip
                     cursor={{ fill: "transparent" }}
@@ -381,7 +458,7 @@ export default function Home() {
                     dataKey="messages"
                     fill="var(--color-primary)"
                     radius={[4, 4, 0, 0]}
-                    barSize={20}
+                    barSize={16}
                   />
                 </BarChart>
               </ResponsiveContainer>
@@ -390,34 +467,35 @@ export default function Home() {
         </NeuCard>
 
         {/* Top Queries List */}
-        <NeuCard className="min-h-[400px] flex flex-col">
-          <div className="flex justify-between items-center mb-6">
+        <NeuCard className="min-h-[300px] sm:min-h-[400px] flex flex-col">
+          <div className="flex justify-between items-center mb-4 sm:mb-6">
             <div>
-              <h3 className="text-lg font-bold text-foreground">Top Student Queries</h3>
-              <p className="text-sm text-muted-foreground">Most frequently asked topics</p>
+              <h3 className="text-base sm:text-lg font-bold text-foreground">Top Student Queries</h3>
+              <p className="text-xs sm:text-sm text-muted-foreground">Most frequently asked topics</p>
             </div>
             <div className="p-2 bg-secondary rounded-lg">
-              <CalendarIcon className="h-5 w-5 text-foreground" />
+              <CalendarIcon className="h-4 w-4 sm:h-5 sm:w-5 text-foreground" />
             </div>
           </div>
-          <div className="space-y-4 flex-1">
+          <div className="space-y-2 sm:space-y-4 flex-1 overflow-y-auto">
             {topQueries && topQueries.length > 0 ? (
               topQueries.map((query, index) => (
                 <div
                   key={query.id}
-                  className="flex items-center justify-between p-3 rounded-xl hover:bg-black/5 transition-colors cursor-pointer group"
+                  className="flex items-center justify-between p-2 sm:p-3 rounded-xl hover:bg-black/5 active:bg-black/10 transition-colors cursor-pointer group touch-manipulation"
+                  style={{ minHeight: "48px" }}
                 >
-                  <div className="flex items-center gap-4">
-                    <div className="h-8 w-8 rounded-full bg-primary/10 flex items-center justify-center text-primary font-bold text-sm">
+                  <div className="flex items-center gap-2 sm:gap-4">
+                    <div className="h-7 w-7 sm:h-8 sm:w-8 rounded-full bg-primary/10 flex items-center justify-center text-primary font-bold text-xs sm:text-sm flex-shrink-0">
                       {index + 1}
                     </div>
-                    <span className="font-semibold text-foreground group-hover:text-primary transition-colors">
+                    <span className="font-semibold text-sm sm:text-base text-foreground group-hover:text-primary transition-colors line-clamp-1">
                       {query.name}
                     </span>
                   </div>
-                  <div className="flex items-center gap-2">
-                    <span className="text-sm font-bold text-foreground">{query.count}</span>
-                    <span className="text-xs text-muted-foreground">queries</span>
+                  <div className="flex items-center gap-1 sm:gap-2 flex-shrink-0">
+                    <span className="text-xs sm:text-sm font-bold text-foreground">{query.count}</span>
+                    <span className="text-[10px] sm:text-xs text-muted-foreground hidden sm:inline">queries</span>
                   </div>
                 </div>
               ))
@@ -428,8 +506,12 @@ export default function Home() {
             )}
 
             {topQueries && topQueries.length > 0 && (
-              <div className="mt-6 pt-4 border-t border-border">
-                <Button variant="ghost" className="w-full text-primary hover:text-primary/80 hover:bg-primary/5">
+              <div className="mt-4 sm:mt-6 pt-3 sm:pt-4 border-t border-border">
+                <Button 
+                  variant="ghost" 
+                  className="w-full text-primary hover:text-primary/80 hover:bg-primary/5 h-11"
+                  style={{ minHeight: "44px" }}
+                >
                   View All Queries
                 </Button>
               </div>

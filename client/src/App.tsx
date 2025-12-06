@@ -9,12 +9,14 @@ import Analytics from "./pages/Analytics";
 import Messages from "./pages/Messages";
 import Students from "./pages/Students";
 import Settings from "./pages/Settings";
+import ROI from "./pages/ROI";
 
 function Router() {
   return (
     <Switch>
       <Route path="/" component={Home} />
       <Route path="/analytics" component={Analytics} />
+      <Route path="/roi" component={ROI} />
       <Route path="/messages" component={Messages} />
       <Route path="/students" component={Students} />
       <Route path="/settings" component={Settings} />
