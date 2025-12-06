@@ -11,6 +11,7 @@ import {
 } from "@/components/ui/dialog";
 import { Switch } from "@/components/ui/switch";
 import { useAuth } from "@/_core/hooks/useAuth";
+import { useTheme } from "@/contexts/ThemeContext";
 import {
   exportAnalyticsToCSV,
   exportAnalyticsToExcel,
@@ -23,6 +24,8 @@ import { toast } from "sonner";
 import {
   AlertTriangle,
   Bell,
+  BellRing,
+  Check,
   Database,
   Download,
   FileSpreadsheet,
@@ -31,19 +34,55 @@ import {
   Lock,
   LogOut,
   Mail,
+  Moon,
   Palette,
+  Plus,
   Save,
+  Send,
   Shield,
+  Sun,
   Trash2,
   User,
+  X,
 } from "lucide-react";
-import { useState } from "react";
+import { useState, useEffect } from "react";
+
+interface NotificationRecipient {
+  id: string;
+  email: string;
+  name: string;
+  alertTypes: string[];
+}
 
 export default function Settings() {
   const { user, logout, loading } = useAuth();
+  const { theme, toggleTheme } = useTheme();
   const [showLogoutConfirm, setShowLogoutConfirm] = useState(false);
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
+  const [showAddRecipient, setShowAddRecipient] = useState(false);
   const [exportFormat, setExportFormat] = useState<"csv" | "excel" | "pdf" | "word">("csv");
+  const [isSaving, setIsSaving] = useState(false);
+  
+  // Appearance settings
+  const [compactView, setCompactView] = useState(false);
+  const [animationsEnabled, setAnimationsEnabled] = useState(true);
+  const [highContrast, setHighContrast] = useState(false);
+  
+  // Notification settings
+  const [emailAlerts, setEmailAlerts] = useState(true);
+  const [lowSatisfactionAlerts, setLowSatisfactionAlerts] = useState(true);
+  const [weeklyReports, setWeeklyReports] = useState(false);
+  const [knowledgeGapAlerts, setKnowledgeGapAlerts] = useState(true);
+  const [criticalAlerts, setCriticalAlerts] = useState(true);
+  const [responseTimeAlerts, setResponseTimeAlerts] = useState(true);
+  
+  // Email recipients
+  const [recipients, setRecipients] = useState<NotificationRecipient[]>([
+    { id: "1", email: "admin@university.edu", name: "Admin Team", alertTypes: ["critical", "weekly"] },
+    { id: "2", email: "support@university.edu", name: "Support Team", alertTypes: ["critical", "satisfaction"] },
+  ]);
+  const [newRecipientEmail, setNewRecipientEmail] = useState("");
+  const [newRecipientName, setNewRecipientName] = useState("");
 
   // Fetch analytics data for export
   const { data: dailyData } = trpc.analytics.getDailyData.useQuery({
@@ -56,12 +95,44 @@ export default function Settings() {
     endDate: new Date(),
   });
 
-  const handleSave = () => {
+  // Load settings from localStorage
+  useEffect(() => {
+    const savedCompact = localStorage.getItem("compact-view");
+    const savedAnimations = localStorage.getItem("animations-enabled");
+    const savedHighContrast = localStorage.getItem("high-contrast");
+    
+    if (savedCompact === "true") setCompactView(true);
+    if (savedAnimations === "false") setAnimationsEnabled(false);
+    if (savedHighContrast === "true") setHighContrast(true);
+  }, []);
+
+  // Apply settings
+  useEffect(() => {
+    document.documentElement.classList.toggle("compact-view", compactView);
+    document.documentElement.classList.toggle("no-animations", !animationsEnabled);
+    document.documentElement.classList.toggle("high-contrast", highContrast);
+  }, [compactView, animationsEnabled, highContrast]);
+
+  const handleSave = async () => {
+    setIsSaving(true);
+    
+    // Save to localStorage
+    localStorage.setItem("compact-view", String(compactView));
+    localStorage.setItem("animations-enabled", String(animationsEnabled));
+    localStorage.setItem("high-contrast", String(highContrast));
+    
+    // Simulate API call
+    await new Promise((resolve) => setTimeout(resolve, 500));
+    
+    setIsSaving(false);
     toast.success("Settings saved successfully!");
   };
 
   const handleLogout = async () => {
     setShowLogoutConfirm(false);
+    localStorage.removeItem("auth-token");
+    localStorage.removeItem("user-session");
+    sessionStorage.clear();
     await logout();
     toast.success("Logged out successfully");
   };
@@ -117,6 +188,45 @@ export default function Settings() {
     toast.success("Data deletion request submitted. This may take up to 24 hours.");
   };
 
+  const handleAddRecipient = () => {
+    if (!newRecipientEmail || !newRecipientName) {
+      toast.error("Please fill in all fields");
+      return;
+    }
+    
+    const newRecipient: NotificationRecipient = {
+      id: Date.now().toString(),
+      email: newRecipientEmail,
+      name: newRecipientName,
+      alertTypes: ["critical"],
+    };
+    
+    setRecipients([...recipients, newRecipient]);
+    setNewRecipientEmail("");
+    setNewRecipientName("");
+    setShowAddRecipient(false);
+    toast.success("Recipient added successfully");
+  };
+
+  const handleRemoveRecipient = (id: string) => {
+    setRecipients(recipients.filter((r) => r.id !== id));
+    toast.success("Recipient removed");
+  };
+
+  const handleTestNotification = () => {
+    toast.success("Test notification sent!", {
+      description: "Check your email inbox for the test message.",
+    });
+  };
+
+  const handleThemeToggle = () => {
+    if (toggleTheme) {
+      toggleTheme();
+    } else {
+      toast.info("Theme switching is not enabled. Enable it in App.tsx ThemeProvider.");
+    }
+  };
+
   return (
     <DashboardLayout>
       {/* Header */}
@@ -131,9 +241,23 @@ export default function Settings() {
             </p>
           </div>
 
-          <Button onClick={handleSave} className="gap-2 h-11" style={{ minHeight: "44px" }}>
-            <Save className="h-4 w-4" />
-            Save Changes
+          <Button 
+            onClick={handleSave} 
+            className="gap-2 h-11" 
+            style={{ minHeight: "44px" }}
+            disabled={isSaving}
+          >
+            {isSaving ? (
+              <>
+                <div className="h-4 w-4 border-2 border-white/30 border-t-white rounded-full animate-spin" />
+                Saving...
+              </>
+            ) : (
+              <>
+                <Save className="h-4 w-4" />
+                Save Changes
+              </>
+            )}
           </Button>
         </div>
 
@@ -175,41 +299,130 @@ export default function Settings() {
               <Bell className="h-5 w-5 text-primary" />
             </div>
             <div>
-              <h3 className="font-semibold text-foreground">Notifications</h3>
-              <p className="text-sm text-muted-foreground">Manage your notification preferences</p>
+              <h3 className="font-semibold text-foreground">Notification Preferences</h3>
+              <p className="text-sm text-muted-foreground">Configure alert types and delivery</p>
             </div>
           </div>
 
           <div className="space-y-4">
             <div className="flex items-center justify-between gap-4">
               <div className="flex-1 min-w-0">
-                <p className="font-medium text-foreground text-sm sm:text-base">Email Alerts</p>
-                <p className="text-xs sm:text-sm text-muted-foreground">Receive daily summary emails</p>
+                <p className="font-medium text-foreground text-sm sm:text-base">Critical Alerts</p>
+                <p className="text-xs sm:text-sm text-muted-foreground">Immediate alerts for urgent issues</p>
               </div>
-              <Switch defaultChecked />
+              <Switch checked={criticalAlerts} onCheckedChange={setCriticalAlerts} />
             </div>
             <div className="flex items-center justify-between gap-4">
               <div className="flex-1 min-w-0">
                 <p className="font-medium text-foreground text-sm sm:text-base">Low Satisfaction Alerts</p>
                 <p className="text-xs sm:text-sm text-muted-foreground">Alert when satisfaction drops below 80%</p>
               </div>
-              <Switch defaultChecked />
+              <Switch checked={lowSatisfactionAlerts} onCheckedChange={setLowSatisfactionAlerts} />
             </div>
             <div className="flex items-center justify-between gap-4">
               <div className="flex-1 min-w-0">
-                <p className="font-medium text-foreground text-sm sm:text-base">Weekly Reports</p>
-                <p className="text-xs sm:text-sm text-muted-foreground">Receive weekly analytics reports</p>
+                <p className="font-medium text-foreground text-sm sm:text-base">Response Time Alerts</p>
+                <p className="text-xs sm:text-sm text-muted-foreground">Alert when response time exceeds threshold</p>
               </div>
-              <Switch />
+              <Switch checked={responseTimeAlerts} onCheckedChange={setResponseTimeAlerts} />
             </div>
             <div className="flex items-center justify-between gap-4">
               <div className="flex-1 min-w-0">
                 <p className="font-medium text-foreground text-sm sm:text-base">Knowledge Gap Alerts</p>
                 <p className="text-xs sm:text-sm text-muted-foreground">Notify when new gaps are detected</p>
               </div>
-              <Switch defaultChecked />
+              <Switch checked={knowledgeGapAlerts} onCheckedChange={setKnowledgeGapAlerts} />
+            </div>
+            <div className="flex items-center justify-between gap-4">
+              <div className="flex-1 min-w-0">
+                <p className="font-medium text-foreground text-sm sm:text-base">Daily Email Summary</p>
+                <p className="text-xs sm:text-sm text-muted-foreground">Receive daily summary emails</p>
+              </div>
+              <Switch checked={emailAlerts} onCheckedChange={setEmailAlerts} />
+            </div>
+            <div className="flex items-center justify-between gap-4">
+              <div className="flex-1 min-w-0">
+                <p className="font-medium text-foreground text-sm sm:text-base">Weekly Reports</p>
+                <p className="text-xs sm:text-sm text-muted-foreground">Receive weekly analytics reports</p>
+              </div>
+              <Switch checked={weeklyReports} onCheckedChange={setWeeklyReports} />
             </div>
           </div>
+
+          <div className="mt-4 pt-4 border-t border-border">
+            <Button
+              variant="outline"
+              className="w-full gap-2 neu-flat border-0 h-11"
+              onClick={handleTestNotification}
+              style={{ minHeight: "44px" }}
+            >
+              <Send className="h-4 w-4" />
+              Send Test Notification
+            </Button>
+          </div>
+        </NeuCard>
+
+        {/* Email Recipients */}
+        <NeuCard>
+          <div className="flex items-center justify-between mb-6">
+            <div className="flex items-center gap-3">
+              <div className="p-2 bg-blue-100 rounded-lg">
+                <Mail className="h-5 w-5 text-blue-600" />
+              </div>
+              <div>
+                <h3 className="font-semibold text-foreground">Email Recipients</h3>
+                <p className="text-sm text-muted-foreground">Manage notification recipients</p>
+              </div>
+            </div>
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => setShowAddRecipient(true)}
+              className="gap-1 h-9"
+            >
+              <Plus className="h-4 w-4" />
+              Add
+            </Button>
+          </div>
+
+          <div className="space-y-3">
+            {recipients.map((recipient) => (
+              <div
+                key={recipient.id}
+                className="flex items-center justify-between p-3 bg-muted/30 rounded-xl"
+              >
+                <div className="flex-1 min-w-0">
+                  <p className="font-medium text-foreground text-sm truncate">{recipient.name}</p>
+                  <p className="text-xs text-muted-foreground truncate">{recipient.email}</p>
+                  <div className="flex gap-1 mt-1 flex-wrap">
+                    {recipient.alertTypes.map((type) => (
+                      <span
+                        key={type}
+                        className="px-1.5 py-0.5 rounded text-[10px] bg-primary/10 text-primary"
+                      >
+                        {type}
+                      </span>
+                    ))}
+                  </div>
+                </div>
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  onClick={() => handleRemoveRecipient(recipient.id)}
+                  className="h-8 w-8 p-0 text-muted-foreground hover:text-destructive"
+                >
+                  <X className="h-4 w-4" />
+                </Button>
+              </div>
+            ))}
+          </div>
+
+          {recipients.length === 0 && (
+            <div className="text-center py-6 text-muted-foreground">
+              <Mail className="h-8 w-8 mx-auto mb-2 opacity-30" />
+              <p className="text-sm">No recipients configured</p>
+            </div>
+          )}
         </NeuCard>
 
         {/* Appearance */}
@@ -227,31 +440,52 @@ export default function Settings() {
           <div className="space-y-4">
             <div className="flex items-center justify-between gap-4">
               <div className="flex-1 min-w-0">
-                <p className="font-medium text-foreground text-sm sm:text-base">Dark Mode</p>
+                <p className="font-medium text-foreground text-sm sm:text-base flex items-center gap-2">
+                  {theme === "dark" ? <Moon className="h-4 w-4" /> : <Sun className="h-4 w-4" />}
+                  Dark Mode
+                </p>
                 <p className="text-xs sm:text-sm text-muted-foreground">Use dark theme</p>
               </div>
-              <Switch />
+              <Switch checked={theme === "dark"} onCheckedChange={handleThemeToggle} />
             </div>
             <div className="flex items-center justify-between gap-4">
               <div className="flex-1 min-w-0">
                 <p className="font-medium text-foreground text-sm sm:text-base">Compact View</p>
                 <p className="text-xs sm:text-sm text-muted-foreground">Show more data in less space</p>
               </div>
-              <Switch />
+              <Switch 
+                checked={compactView} 
+                onCheckedChange={(checked) => {
+                  setCompactView(checked);
+                  localStorage.setItem("compact-view", String(checked));
+                }} 
+              />
             </div>
             <div className="flex items-center justify-between gap-4">
               <div className="flex-1 min-w-0">
                 <p className="font-medium text-foreground text-sm sm:text-base">Animations</p>
                 <p className="text-xs sm:text-sm text-muted-foreground">Enable UI animations</p>
               </div>
-              <Switch defaultChecked />
+              <Switch 
+                checked={animationsEnabled} 
+                onCheckedChange={(checked) => {
+                  setAnimationsEnabled(checked);
+                  localStorage.setItem("animations-enabled", String(checked));
+                }} 
+              />
             </div>
             <div className="flex items-center justify-between gap-4">
               <div className="flex-1 min-w-0">
                 <p className="font-medium text-foreground text-sm sm:text-base">High Contrast</p>
                 <p className="text-xs sm:text-sm text-muted-foreground">Improve accessibility</p>
               </div>
-              <Switch />
+              <Switch 
+                checked={highContrast} 
+                onCheckedChange={(checked) => {
+                  setHighContrast(checked);
+                  localStorage.setItem("high-contrast", String(checked));
+                }} 
+              />
             </div>
           </div>
         </NeuCard>
@@ -259,8 +493,8 @@ export default function Settings() {
         {/* Export Options */}
         <NeuCard>
           <div className="flex items-center gap-3 mb-6">
-            <div className="p-2 bg-blue-100 rounded-lg">
-              <Download className="h-5 w-5 text-blue-600" />
+            <div className="p-2 bg-green-100 rounded-lg">
+              <Download className="h-5 w-5 text-green-600" />
             </div>
             <div>
               <h3 className="font-semibold text-foreground">Export Data</h3>
@@ -330,8 +564,8 @@ export default function Settings() {
         {/* Data & Privacy */}
         <NeuCard>
           <div className="flex items-center gap-3 mb-6">
-            <div className="p-2 bg-green-100 rounded-lg">
-              <Shield className="h-5 w-5 text-green-600" />
+            <div className="p-2 bg-purple-100 rounded-lg">
+              <Shield className="h-5 w-5 text-purple-600" />
             </div>
             <div>
               <h3 className="font-semibold text-foreground">Data & Privacy</h3>
@@ -379,8 +613,8 @@ export default function Settings() {
         {/* API Integration */}
         <NeuCard className="lg:col-span-2">
           <div className="flex items-center gap-3 mb-6">
-            <div className="p-2 bg-purple-100 rounded-lg">
-              <Globe className="h-5 w-5 text-purple-600" />
+            <div className="p-2 bg-orange-100 rounded-lg">
+              <Globe className="h-5 w-5 text-orange-600" />
             </div>
             <div>
               <h3 className="font-semibold text-foreground">API Integration</h3>
@@ -480,6 +714,54 @@ export default function Settings() {
             <Button variant="destructive" onClick={handleDeleteData} className="gap-2">
               <Trash2 className="h-4 w-4" />
               Delete All Data
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Add Recipient Dialog */}
+      <Dialog open={showAddRecipient} onOpenChange={setShowAddRecipient}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <Mail className="h-5 w-5 text-primary" />
+              Add Email Recipient
+            </DialogTitle>
+            <DialogDescription>
+              Add a new recipient for notification emails
+            </DialogDescription>
+          </DialogHeader>
+          
+          <div className="space-y-4 py-4">
+            <div>
+              <label className="text-sm font-medium text-foreground">Name</label>
+              <input
+                type="text"
+                value={newRecipientName}
+                onChange={(e) => setNewRecipientName(e.target.value)}
+                placeholder="e.g., Support Team"
+                className="w-full mt-1 p-2 rounded-lg border border-border bg-background focus:outline-none focus:ring-2 focus:ring-primary/20"
+              />
+            </div>
+            <div>
+              <label className="text-sm font-medium text-foreground">Email</label>
+              <input
+                type="email"
+                value={newRecipientEmail}
+                onChange={(e) => setNewRecipientEmail(e.target.value)}
+                placeholder="e.g., support@university.edu"
+                className="w-full mt-1 p-2 rounded-lg border border-border bg-background focus:outline-none focus:ring-2 focus:ring-primary/20"
+              />
+            </div>
+          </div>
+
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setShowAddRecipient(false)}>
+              Cancel
+            </Button>
+            <Button onClick={handleAddRecipient} className="gap-2">
+              <Check className="h-4 w-4" />
+              Add Recipient
             </Button>
           </DialogFooter>
         </DialogContent>

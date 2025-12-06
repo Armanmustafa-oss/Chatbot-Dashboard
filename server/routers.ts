@@ -18,7 +18,14 @@ import {
   createNotification,
   markNotificationAsRead,
   markAllNotificationsAsRead,
-  dismissNotification
+  dismissNotification,
+  snoozeNotification,
+  getNotificationHistory,
+  detectSentimentAnomaly,
+  detectResponseTimeAnomaly,
+  detectSatisfactionDecline,
+  getHighVolumeCategories,
+  reactivateSnoozedNotifications,
 } from "./db";
 
 export const appRouter = router({
@@ -203,6 +210,54 @@ export const appRouter = router({
       }))
       .mutation(async ({ input }) => {
         return await dismissNotification(input.id);
+      }),
+
+    snooze: publicProcedure
+      .input(z.object({
+        id: z.number(),
+        duration: z.enum(['15min', '1hour', '4hours', '1day']),
+      }))
+      .mutation(async ({ input }) => {
+        const durationMs = {
+          '15min': 15 * 60 * 1000,
+          '1hour': 60 * 60 * 1000,
+          '4hours': 4 * 60 * 60 * 1000,
+          '1day': 24 * 60 * 60 * 1000,
+        };
+        const snoozeUntil = new Date(Date.now() + durationMs[input.duration]);
+        return await snoozeNotification(input.id, snoozeUntil);
+      }),
+
+    history: publicProcedure
+      .input(z.object({
+        limit: z.number().min(1).max(200).default(100),
+      }).optional())
+      .query(async ({ input }) => {
+        return await getNotificationHistory(input?.limit || 100);
+      }),
+
+    // Pattern detection endpoints
+    detectAnomalies: publicProcedure
+      .query(async () => {
+        const [sentiment, responseTime, satisfaction, highVolume] = await Promise.all([
+          detectSentimentAnomaly(),
+          detectResponseTimeAnomaly(),
+          detectSatisfactionDecline(),
+          getHighVolumeCategories(),
+        ]);
+
+        return {
+          sentiment,
+          responseTime,
+          satisfaction,
+          highVolumeCategories: highVolume,
+          hasAnyAnomaly: sentiment.hasAnomaly || responseTime.hasAnomaly || satisfaction.hasDecline,
+        };
+      }),
+
+    reactivateSnoozed: publicProcedure
+      .mutation(async () => {
+        return await reactivateSnoozedNotifications();
       }),
   }),
 });

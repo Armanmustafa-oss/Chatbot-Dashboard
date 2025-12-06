@@ -119,6 +119,7 @@ export const notifications = mysqlTable("notifications", {
   messageId: int("messageId"), // Optional reference to related message
   isRead: boolean("isRead").default(false).notNull(),
   isDismissed: boolean("isDismissed").default(false).notNull(),
+  snoozeUntil: timestamp("snoozeUntil"), // When snoozed notification should reappear
   createdAt: timestamp("createdAt").defaultNow().notNull(),
 });
 

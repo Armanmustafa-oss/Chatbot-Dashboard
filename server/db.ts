@@ -1,4 +1,4 @@
-import { eq, sql, and, gte, lte, desc, count } from "drizzle-orm";
+import { eq, sql, and, gte, lte, desc, count, isNotNull } from "drizzle-orm";
 import { drizzle } from "drizzle-orm/mysql2";
 import { 
   InsertUser, 
@@ -444,4 +444,289 @@ export async function dismissNotification(id: number): Promise<boolean> {
     .where(eq(notifications.id, id));
 
   return true;
+}
+
+
+// ============ Pattern Detection for Notifications ============
+
+/**
+ * Detect sentiment trend anomalies
+ * Returns true if negative sentiment is significantly higher than the 30-day average
+ */
+export async function detectSentimentAnomaly(): Promise<{
+  hasAnomaly: boolean;
+  currentNegativeRate: number;
+  averageNegativeRate: number;
+  threshold: number;
+}> {
+  const db = await getDb();
+  if (!db) return { hasAnomaly: false, currentNegativeRate: 0, averageNegativeRate: 0, threshold: 0 };
+
+  // Get last 24 hours sentiment
+  const last24Hours = new Date(Date.now() - 24 * 60 * 60 * 1000);
+  const recentMessages = await db
+    .select({ sentiment: messages.sentiment })
+    .from(messages)
+    .where(gte(messages.createdAt, last24Hours));
+
+  const recentTotal = recentMessages.length;
+  const recentNegative = recentMessages.filter(m => m.sentiment === 'negative').length;
+  const currentNegativeRate = recentTotal > 0 ? (recentNegative / recentTotal) * 100 : 0;
+
+  // Get 30-day average
+  const last30Days = new Date(Date.now() - 30 * 24 * 60 * 60 * 1000);
+  const historicalMessages = await db
+    .select({ sentiment: messages.sentiment })
+    .from(messages)
+    .where(and(
+      gte(messages.createdAt, last30Days),
+      lte(messages.createdAt, last24Hours)
+    ));
+
+  const historicalTotal = historicalMessages.length;
+  const historicalNegative = historicalMessages.filter(m => m.sentiment === 'negative').length;
+  const averageNegativeRate = historicalTotal > 0 ? (historicalNegative / historicalTotal) * 100 : 0;
+
+  // Anomaly if current rate is 2 standard deviations above average (simplified: 50% higher)
+  const threshold = averageNegativeRate * 1.5;
+  const hasAnomaly = currentNegativeRate > threshold && currentNegativeRate > 10;
+
+  return {
+    hasAnomaly,
+    currentNegativeRate: Math.round(currentNegativeRate * 10) / 10,
+    averageNegativeRate: Math.round(averageNegativeRate * 10) / 10,
+    threshold: Math.round(threshold * 10) / 10,
+  };
+}
+
+/**
+ * Detect response time degradation
+ * Returns true if average response time is significantly higher than normal
+ */
+export async function detectResponseTimeAnomaly(): Promise<{
+  hasAnomaly: boolean;
+  currentAvgMs: number;
+  historicalAvgMs: number;
+  threshold: number;
+}> {
+  const db = await getDb();
+  if (!db) return { hasAnomaly: false, currentAvgMs: 0, historicalAvgMs: 0, threshold: 0 };
+
+  // Get last 2 hours average response time
+  const last2Hours = new Date(Date.now() - 2 * 60 * 60 * 1000);
+  const recentMessages = await db
+    .select({ responseTimeMs: messages.responseTimeMs })
+    .from(messages)
+    .where(and(
+      gte(messages.createdAt, last2Hours),
+      isNotNull(messages.responseTimeMs)
+    ));
+
+  const recentTimes = recentMessages.map(m => m.responseTimeMs).filter((t): t is number => t !== null);
+  const currentAvgMs = recentTimes.length > 0 
+    ? recentTimes.reduce((sum, t) => sum + t, 0) / recentTimes.length 
+    : 0;
+
+  // Get 7-day average
+  const last7Days = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000);
+  const historicalMessages = await db
+    .select({ responseTimeMs: messages.responseTimeMs })
+    .from(messages)
+    .where(and(
+      gte(messages.createdAt, last7Days),
+      lte(messages.createdAt, last2Hours),
+      isNotNull(messages.responseTimeMs)
+    ));
+
+  const historicalTimes = historicalMessages.map(m => m.responseTimeMs).filter((t): t is number => t !== null);
+  const historicalAvgMs = historicalTimes.length > 0 
+    ? historicalTimes.reduce((sum, t) => sum + t, 0) / historicalTimes.length 
+    : 0;
+
+  // Anomaly if current is 100% higher than historical
+  const threshold = historicalAvgMs * 2;
+  const hasAnomaly = currentAvgMs > threshold && currentAvgMs > 2000;
+
+  return {
+    hasAnomaly,
+    currentAvgMs: Math.round(currentAvgMs),
+    historicalAvgMs: Math.round(historicalAvgMs),
+    threshold: Math.round(threshold),
+  };
+}
+
+/**
+ * Detect satisfaction score decline
+ * Returns true if satisfaction dropped significantly
+ */
+export async function detectSatisfactionDecline(): Promise<{
+  hasDecline: boolean;
+  currentScore: number;
+  previousScore: number;
+  changePercent: number;
+}> {
+  const db = await getDb();
+  if (!db) return { hasDecline: false, currentScore: 0, previousScore: 0, changePercent: 0 };
+
+  // Get last 7 days satisfaction
+  const last7Days = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000);
+  const last14Days = new Date(Date.now() - 14 * 24 * 60 * 60 * 1000);
+
+  const recentMessages = await db
+    .select({ sentiment: messages.sentiment })
+    .from(messages)
+    .where(gte(messages.createdAt, last7Days));
+
+  const recentTotal = recentMessages.length;
+  const recentPositive = recentMessages.filter(m => m.sentiment === 'positive').length;
+  const currentScore = recentTotal > 0 ? (recentPositive / recentTotal) * 100 : 0;
+
+  // Get previous 7 days
+  const previousMessages = await db
+    .select({ sentiment: messages.sentiment })
+    .from(messages)
+    .where(and(
+      gte(messages.createdAt, last14Days),
+      lte(messages.createdAt, last7Days)
+    ));
+
+  const previousTotal = previousMessages.length;
+  const previousPositive = previousMessages.filter(m => m.sentiment === 'positive').length;
+  const previousScore = previousTotal > 0 ? (previousPositive / previousTotal) * 100 : 0;
+
+  const changePercent = previousScore > 0 ? ((currentScore - previousScore) / previousScore) * 100 : 0;
+  const hasDecline = changePercent < -10; // More than 10% decline
+
+  return {
+    hasDecline,
+    currentScore: Math.round(currentScore * 10) / 10,
+    previousScore: Math.round(previousScore * 10) / 10,
+    changePercent: Math.round(changePercent * 10) / 10,
+  };
+}
+
+/**
+ * Get high-volume query categories that may need attention
+ */
+export async function getHighVolumeCategories(): Promise<Array<{
+  category: string;
+  count: number;
+  negativeRate: number;
+}>> {
+  const db = await getDb();
+  if (!db) return [];
+
+  const last24Hours = new Date(Date.now() - 24 * 60 * 60 * 1000);
+  
+  const categoryStats = await db
+    .select({
+      category: messages.category,
+      total: count(),
+    })
+    .from(messages)
+    .where(and(
+      gte(messages.createdAt, last24Hours),
+      isNotNull(messages.category)
+    ))
+    .groupBy(messages.category)
+    .orderBy(desc(count()));
+
+  const results = [];
+  for (const stat of categoryStats.slice(0, 5)) {
+    if (!stat.category) continue;
+    
+    const negativeCount = await db
+      .select({ count: count() })
+      .from(messages)
+      .where(and(
+        gte(messages.createdAt, last24Hours),
+        eq(messages.category, stat.category),
+        eq(messages.sentiment, 'negative')
+      ));
+
+    const negativeRate = stat.total > 0 ? ((negativeCount[0]?.count || 0) / stat.total) * 100 : 0;
+    
+    results.push({
+      category: stat.category,
+      count: stat.total,
+      negativeRate: Math.round(negativeRate * 10) / 10,
+    });
+  }
+
+  return results;
+}
+
+/**
+ * Snooze a notification until a specific time
+ */
+export async function snoozeNotification(id: number, snoozeUntil: Date): Promise<boolean> {
+  const db = await getDb();
+  if (!db) return false;
+
+  await db
+    .update(notifications)
+    .set({ 
+      snoozeUntil,
+      isRead: true // Mark as read when snoozed
+    })
+    .where(eq(notifications.id, id));
+
+  return true;
+}
+
+/**
+ * Get snoozed notifications that should reappear
+ */
+export async function getSnoozedNotificationsToReactivate(): Promise<Notification[]> {
+  const db = await getDb();
+  if (!db) return [];
+
+  const now = new Date();
+  
+  return await db
+    .select()
+    .from(notifications)
+    .where(and(
+      isNotNull(notifications.snoozeUntil),
+      lte(notifications.snoozeUntil, now),
+      eq(notifications.isDismissed, false)
+    ));
+}
+
+/**
+ * Reactivate snoozed notifications
+ */
+export async function reactivateSnoozedNotifications(): Promise<number> {
+  const db = await getDb();
+  if (!db) return 0;
+
+  const now = new Date();
+  
+  const result = await db
+    .update(notifications)
+    .set({ 
+      isRead: false,
+      snoozeUntil: null
+    })
+    .where(and(
+      isNotNull(notifications.snoozeUntil),
+      lte(notifications.snoozeUntil, now),
+      eq(notifications.isDismissed, false)
+    ));
+
+  return 1; // Drizzle doesn't return affected rows easily, return 1 if successful
+}
+
+/**
+ * Get notification history (including dismissed)
+ */
+export async function getNotificationHistory(limit: number = 100): Promise<Notification[]> {
+  const db = await getDb();
+  if (!db) return [];
+
+  return await db
+    .select()
+    .from(notifications)
+    .orderBy(desc(notifications.createdAt))
+    .limit(limit);
 }
