@@ -102,3 +102,54 @@
 - [ ] Implement inline expansion for moderate data volumes
 - [ ] Implement modal/page navigation for large data volumes
 - [ ] Ensure no decorative/non-functional expansion affordances
+
+## Analytics Page Enhancements (Phase 4)
+
+### Total Messages Drill-Down
+- [x] Progressive disclosure pattern with first 50 messages in table
+- [x] Columns: student ID, message preview (40 chars), category, timestamp, satisfaction icon
+- [x] Filter panel: category dropdown, satisfaction filter, date refinement, text search
+- [x] Pagination with page navigation and "show all" option
+- [x] Message detail view with slide-in panel or modal
+- [x] Show student ID with link to profile
+- [x] Display complete message text and bot response
+- [x] Metadata section: category, timestamp, response time, sentiment, rating
+- [x] "View Student History" button linking to Students page
+
+### Satisfaction Rate Split View
+- [x] Split view with satisfied (green) and dissatisfied (red) sections
+- [x] Header showing percentage and message count for each section
+- [x] Synchronized filtering across both sections
+- [x] Same message list format and drill-down as Total Messages
+
+### Unique Students Drill-Down
+- [x] Student list with ID, department, last interaction
+- [x] Click to navigate to Students page with context preserved
+
+### Response Time Distribution
+- [x] Histogram with time buckets (0-1s, 1-2s, 2-5s, 5-10s, 10s+)
+- [x] Color gradient (green=fast, yellow=moderate, red=slow)
+- [x] Summary statistics: median, 90th percentile, fastest, slowest
+
+### Date Range Selector Fix
+- [x] Dual-calendar with independent start and end date selection
+- [x] Side-by-side calendar grids labeled "Start Date" and "End Date"
+- [x] Prevent invalid selections (end before start)
+- [x] Presets: Last 24 Hours, Last 7 Days, Last 30 Days, Custom Range
+- [x] Text summary showing selected range
+- [x] Apply and Cancel buttons
+
+### Export System Enhancement
+- [x] Export configuration panel with data selection options
+- [x] Format buttons: PDF (Executive Report), Excel (Detailed Data), Word (Narrative Report)
+- [x] Format-specific options (visualizations, orientation, worksheets, etc.)
+- [x] Preview modal before download
+- [x] Clear filename with content and date range
+
+### Responsive Layout
+- [x] Replace fixed pixel widths with percentage/flexbox/grid
+- [x] Responsive grid: 4 cols desktop, 2 cols tablet, 1 col mobile
+- [x] Flexbox filter panel with wrapping
+- [x] Responsive charts with auto-resize
+- [x] 44x44px minimum touch targets
+- [x] Responsive typography
