@@ -311,3 +311,48 @@
 - [x] API endpoint documentation
 - [ ] Webhook endpoint for receiving WhatsApp messages (requires backend implementation)
 - [ ] Data ingestion from Supabase/external sources (requires backend implementation)
+
+## Phase 8: Comprehensive UI/UX Improvements and Backend Integrations
+
+### Overview Page Chart Fixes
+- [ ] Fix Message Volume Trend chart - ensure visible in both light and dark modes
+- [ ] Fix Sentiment Analysis chart - ensure visible in both light and dark modes
+- [ ] Fix Peak Messaging Times chart - ensure visible in both light and dark modes
+- [ ] Add proper chart colors with sufficient contrast
+- [ ] Add loading states and error handling for charts
+
+### ROI Intelligence Page Redesign
+- [ ] Improve overall visual layout and readability
+- [ ] Better organization of data sections
+- [ ] More attractive card designs
+- [ ] Improved typography and spacing
+- [ ] Better visual hierarchy
+
+### Messages Page Filter Redesign
+- [ ] Transform dropdown filters into attractive card-based design
+- [ ] Eye-catching filter UI instead of plain dropdowns
+- [ ] Visual filter chips with icons
+- [ ] Better layout for filter section
+- [ ] Improved visual appeal
+
+### Settings Page Layout Improvement
+- [ ] Redesign overall layout for better visual appeal
+- [ ] Improve card organization
+- [ ] Better spacing and typography
+- [ ] More polished visual design
+
+### Backend Integrations
+- [ ] Create /api/webhook/whatsapp endpoint for real-time message ingestion
+- [ ] Implement WebSocket/SSE for real-time dashboard updates
+- [ ] Build Supabase sync service for data synchronization
+- [ ] Add SendGrid integration for email delivery
+- [ ] Configure environment variables for external services
+
+
+
+## Phase 7: Chart Display Fixes (December 7, 2025)
+- [x] Fix blank charts on Overview page - charts now display with data
+- [x] Fix Message Volume Trend chart height issue
+- [x] Fix Peak Messaging Times chart height issue
+- [x] Fix Sentiment Analysis pie chart - now shows sample data (64% positive, 25% neutral, 11% negative)
+- [x] Update Satisfaction Score KPI to show correct percentage (64%)

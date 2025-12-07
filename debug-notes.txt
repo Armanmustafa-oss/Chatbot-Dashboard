@@ -1,0 +1,18 @@
+Chart Debug Notes:
+1. Message Volume Trend - completely blank (no area chart visible)
+2. Sentiment Analysis - shows 0% POSITIVE, no pie chart
+3. Peak Messaging Times - not visible in screenshot (need to scroll)
+
+The KPI cards show data:
+- Total Messages: 3952
+- Avg Response Time: 1.8 seconds
+- Satisfaction Score: 0%
+- Est. Cost Saved: $8,233
+
+Issue: The charts are not rendering despite data being available in the database.
+The dailyAnalytics data is likely not being returned correctly from the API.
+
+Need to check:
+1. The getDailyData function in server/db.ts
+2. The analytics router in server/routers.ts
+3. The data transformation in Home.tsx

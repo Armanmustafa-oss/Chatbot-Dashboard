@@ -1,0 +1,28 @@
+{
+  "query": "SELECT * FROM hourlyPeakTimes LIMIT 3;",
+  "command": "mysql --batch --raw --column-names --default-character-set=utf8mb4 --host gateway02.us-east-1.prod.aws.tidbcloud.com --port 4000 --user 3eNQGjqKLjPjVky.9f44687398e8 --database 2DkuAsPf7vUCya3sED7FTv --execute SELECT * FROM hourlyPeakTimes LIMIT 3;",
+  "rows": [
+    {
+      "id": "1",
+      "date": "2025-11-05 00:00:00",
+      "hour": "0",
+      "messageCount": "5"
+    },
+    {
+      "id": "2",
+      "date": "2025-11-05 00:00:00",
+      "hour": "1",
+      "messageCount": "8"
+    },
+    {
+      "id": "3",
+      "date": "2025-11-05 00:00:00",
+      "hour": "2",
+      "messageCount": "9"
+    }
+  ],
+  "messages": [],
+  "stdout": "id\tdate\thour\tmessageCount\n1\t2025-11-05 00:00:00\t0\t5\n2\t2025-11-05 00:00:00\t1\t8\n3\t2025-11-05 00:00:00\t2\t9\n",
+  "stderr": "",
+  "execution_time_ms": 49
+}

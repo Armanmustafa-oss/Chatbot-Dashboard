@@ -56,138 +56,116 @@ interface DrillDownContent {
 }
 
 interface NeuStatProps {
-  label: string;
+  title: string;
   value: string | number;
-  icon?: React.ElementType;
+  icon?: React.ReactNode;
+  change?: string;
+  isPositive?: boolean;
+  onClick?: () => void;
+  tooltip?: string;
+  drillDown?: DrillDownContent;
+  // Legacy props for backward compatibility
+  label?: string;
   trend?: string;
   tooltipContent?: string;
-  drillDown?: DrillDownContent;
 }
 
 export function NeuStat({
+  title,
   label,
   value,
-  icon: Icon,
+  icon,
+  change,
   trend,
+  isPositive = true,
+  onClick,
+  tooltip,
   tooltipContent,
   drillDown,
 }: NeuStatProps) {
   const [isOpen, setIsOpen] = useState(false);
+  
+  // Support both new and legacy prop names
+  const displayLabel = title || label || "";
+  const displayTrend = change || trend;
+  const displayTooltip = tooltip || tooltipContent;
 
   const cardContent = (
-    <div className="flex flex-col items-start justify-between h-full min-h-[140px]">
+    <div 
+      className={cn(
+        "flex flex-col items-start justify-between h-full min-h-[140px]",
+        onClick && "cursor-pointer"
+      )}
+      onClick={onClick}
+    >
       <div className="flex w-full justify-between items-start mb-4">
         <span className="text-muted-foreground font-semibold text-xs sm:text-sm uppercase tracking-wider">
-          {label}
+          {displayLabel}
         </span>
-        {Icon && <Icon className="h-5 w-5 sm:h-6 sm:w-6 text-primary opacity-80" />}
+        {icon && <div className="opacity-80">{icon}</div>}
       </div>
       <div className="flex items-end gap-2 w-full flex-wrap">
         <span className="text-2xl sm:text-4xl font-bold text-foreground tracking-tight">
           {value}
         </span>
-        {trend && (
+        {displayTrend && (
           <span
             className={cn(
               "text-xs sm:text-sm font-bold mb-0.5 sm:mb-1.5",
-              trend.startsWith("+") || trend.startsWith("-") && !trend.includes("-")
-                ? "text-green-500"
-                : trend.startsWith("-")
-                ? "text-red-500"
-                : "text-green-500"
+              isPositive ? "text-green-500" : "text-red-500"
             )}
           >
-            {trend}
+            {displayTrend}
           </span>
         )}
       </div>
+      {displayTooltip && (
+        <p className="text-xs text-muted-foreground mt-2">{displayTooltip}</p>
+      )}
     </div>
   );
 
-  // If there's drill-down content, wrap in Dialog
+  // If there's a drill-down, wrap in dialog
   if (drillDown) {
     return (
       <Dialog open={isOpen} onOpenChange={setIsOpen}>
-        <Tooltip>
-          <TooltipTrigger asChild>
-            <DialogTrigger asChild>
-              <NeuCard
-                interactive
-                className="cursor-pointer group"
-                role="button"
-                tabIndex={0}
-                onKeyDown={(e) => {
-                  if (e.key === "Enter" || e.key === " ") {
-                    setIsOpen(true);
-                  }
-                }}
-              >
-                {cardContent}
-                <div className="mt-2 text-xs text-primary opacity-0 group-hover:opacity-100 transition-opacity">
-                  Click for details →
-                </div>
-              </NeuCard>
-            </DialogTrigger>
-          </TooltipTrigger>
-          {tooltipContent && (
-            <TooltipContent side="top" className="max-w-xs">
-              <p className="text-sm">{tooltipContent}</p>
-            </TooltipContent>
-          )}
-        </Tooltip>
-
-        <DialogContent className="max-w-lg">
+        <DialogTrigger asChild>
+          <NeuCard interactive className="cursor-pointer">
+            {cardContent}
+          </NeuCard>
+        </DialogTrigger>
+        <DialogContent className="max-w-lg max-h-[90vh] overflow-y-auto">
           <DialogHeader>
-            <DialogTitle className="text-xl">{drillDown.title}</DialogTitle>
+            <DialogTitle className="text-xl font-bold">{drillDown.title}</DialogTitle>
             <DialogDescription>{drillDown.description}</DialogDescription>
           </DialogHeader>
-
-          <div className="space-y-6 mt-4">
-            {/* Formula */}
+          <div className="space-y-4 mt-4">
+            {drillDown.breakdown.map((item, index) => (
+              <div key={index} className="flex justify-between items-center p-3 bg-muted/50 rounded-lg">
+                <div>
+                  <span className="font-medium text-foreground">{item.label}</span>
+                  {item.description && (
+                    <p className="text-xs text-muted-foreground mt-0.5">{item.description}</p>
+                  )}
+                </div>
+                <span className="font-bold text-primary">{item.value}</span>
+              </div>
+            ))}
             {drillDown.formula && (
-              <div className="p-4 bg-muted/50 rounded-xl">
-                <p className="text-xs text-muted-foreground uppercase tracking-wider mb-2">
-                  Calculation Formula
-                </p>
-                <p className="font-mono text-sm text-foreground">{drillDown.formula}</p>
+              <div className="p-3 bg-primary/5 rounded-lg border border-primary/20">
+                <p className="text-xs text-muted-foreground mb-1">Formula</p>
+                <code className="text-sm text-foreground">{drillDown.formula}</code>
               </div>
             )}
-
-            {/* Breakdown */}
-            <div className="space-y-3">
-              <p className="text-xs text-muted-foreground uppercase tracking-wider">
-                Breakdown
-              </p>
-              {drillDown.breakdown.map((item, index) => (
-                <div
-                  key={index}
-                  className="flex justify-between items-center p-3 bg-muted/30 rounded-lg"
-                >
-                  <div>
-                    <p className="font-medium text-foreground">{item.label}</p>
-                    {item.description && (
-                      <p className="text-xs text-muted-foreground">{item.description}</p>
-                    )}
-                  </div>
-                  <span className="font-bold text-foreground">{item.value}</span>
-                </div>
-              ))}
-            </div>
-
-            {/* Assumptions */}
             {drillDown.assumptions && drillDown.assumptions.length > 0 && (
               <div className="space-y-2">
-                <p className="text-xs text-muted-foreground uppercase tracking-wider">
-                  Assumptions
-                </p>
-                <div className="grid grid-cols-2 gap-2">
-                  {drillDown.assumptions.map((assumption, index) => (
-                    <div key={index} className="p-2 bg-muted/20 rounded-lg">
-                      <p className="text-xs text-muted-foreground">{assumption.label}</p>
-                      <p className="font-medium text-sm text-foreground">{assumption.value}</p>
-                    </div>
-                  ))}
-                </div>
+                <p className="text-xs text-muted-foreground font-semibold uppercase">Assumptions</p>
+                {drillDown.assumptions.map((assumption, index) => (
+                  <div key={index} className="flex justify-between text-sm">
+                    <span className="text-muted-foreground">{assumption.label}</span>
+                    <span className="text-foreground">{assumption.value}</span>
+                  </div>
+                ))}
               </div>
             )}
           </div>
@@ -196,22 +174,25 @@ export function NeuStat({
     );
   }
 
-  // If there's tooltip content but no drill-down
-  if (tooltipContent) {
+  // If there's a tooltip, wrap in tooltip
+  if (displayTooltip && !onClick) {
     return (
       <Tooltip>
         <TooltipTrigger asChild>
-          <NeuCard interactive className="cursor-help">
+          <NeuCard interactive={!!onClick}>
             {cardContent}
           </NeuCard>
         </TooltipTrigger>
-        <TooltipContent side="top" className="max-w-xs">
-          <p className="text-sm">{tooltipContent}</p>
+        <TooltipContent>
+          <p>{displayTooltip}</p>
         </TooltipContent>
       </Tooltip>
     );
   }
 
-  // Default: no interactivity
-  return <NeuCard>{cardContent}</NeuCard>;
+  return (
+    <NeuCard interactive={!!onClick}>
+      {cardContent}
+    </NeuCard>
+  );
 }

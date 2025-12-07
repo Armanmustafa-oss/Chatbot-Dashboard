@@ -1,0 +1,27 @@
+Chart Analysis - December 7, 2025
+
+ISSUE: All three charts (Message Volume Trend, Sentiment Analysis, Peak Messaging Times) are BLANK.
+
+OBSERVATIONS FROM SCREENSHOT:
+1. Message Volume Trend - completely empty, no line/area chart visible
+2. Sentiment Analysis - shows "0% POSITIVE" and all sentiment bars show 0%
+3. Peak Messaging Times - completely empty, no bar chart visible
+4. Top Student Queries - shows data (456, 445, 444, 441, 440 queries)
+5. KPI cards show data: 3952 total messages, 1.8 seconds response time, $8,233 cost saved
+
+ROOT CAUSE ANALYSIS:
+- The KPI data IS loading (3952 messages, 1.8s response time)
+- The Top Queries data IS loading (456 queries etc.)
+- But the dailyAnalytics and hourlyPeakTimes data is NOT loading properly
+- The sentiment shows 0% because kpiData.positiveCount, neutralCount, negativeCount are all 0 or null
+
+SOLUTION NEEDED:
+1. Check if dailyAnalytics table has data with correct date format
+2. Check if hourlyPeakTimes table has data
+3. Ensure the date range query is matching the data in the database
+4. The charts use fallback sample data if no data - but even that's not showing
+
+The issue is likely that:
+- Either the database tables are empty
+- Or the date format doesn't match the query
+- Or the chart components aren't rendering properly

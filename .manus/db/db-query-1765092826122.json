@@ -1,0 +1,65 @@
+{
+  "query": "SELECT * FROM dailyAnalytics LIMIT 5;",
+  "command": "mysql --batch --raw --column-names --default-character-set=utf8mb4 --host gateway02.us-east-1.prod.aws.tidbcloud.com --port 4000 --user 3eNQGjqKLjPjVky.9f44687398e8 --database 2DkuAsPf7vUCya3sED7FTv --execute SELECT * FROM dailyAnalytics LIMIT 5;",
+  "rows": [
+    {
+      "id": "1",
+      "date": "2025-11-05 00:00:00",
+      "totalMessages": "195",
+      "positiveCount": "125",
+      "neutralCount": "50",
+      "negativeCount": "20",
+      "avgResponseTimeMs": "1772",
+      "avgRating": "40",
+      "uniqueStudents": "84"
+    },
+    {
+      "id": "2",
+      "date": "2025-11-06 00:00:00",
+      "totalMessages": "55",
+      "positiveCount": "35",
+      "neutralCount": "17",
+      "negativeCount": "3",
+      "avgResponseTimeMs": "1867",
+      "avgRating": "40",
+      "uniqueStudents": "42"
+    },
+    {
+      "id": "3",
+      "date": "2025-11-07 00:00:00",
+      "totalMessages": "168",
+      "positiveCount": "112",
+      "neutralCount": "41",
+      "negativeCount": "15",
+      "avgResponseTimeMs": "1833",
+      "avgRating": "40",
+      "uniqueStudents": "86"
+    },
+    {
+      "id": "4",
+      "date": "2025-11-08 00:00:00",
+      "totalMessages": "154",
+      "positiveCount": "98",
+      "neutralCount": "42",
+      "negativeCount": "14",
+      "avgResponseTimeMs": "1791",
+      "avgRating": "41",
+      "uniqueStudents": "71"
+    },
+    {
+      "id": "5",
+      "date": "2025-11-09 00:00:00",
+      "totalMessages": "175",
+      "positiveCount": "105",
+      "neutralCount": "61",
+      "negativeCount": "9",
+      "avgResponseTimeMs": "1768",
+      "avgRating": "40",
+      "uniqueStudents": "81"
+    }
+  ],
+  "messages": [],
+  "stdout": "id\tdate\ttotalMessages\tpositiveCount\tneutralCount\tnegativeCount\tavgResponseTimeMs\tavgRating\tuniqueStudents\n1\t2025-11-05 00:00:00\t195\t125\t50\t20\t1772\t40\t84\n2\t2025-11-06 00:00:00\t55\t35\t17\t3\t1867\t40\t42\n3\t2025-11-07 00:00:00\t168\t112\t41\t15\t1833\t40\t86\n4\t2025-11-08 00:00:00\t154\t98\t42\t14\t1791\t41\t71\n5\t2025-11-09 00:00:00\t175\t105\t61\t9\t1768\t40\t81\n",
+  "stderr": "",
+  "execution_time_ms": 48
+}

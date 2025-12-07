@@ -1,0 +1,22 @@
+{
+  "query": "SELECT * FROM messages LIMIT 1;",
+  "command": "mysql --batch --raw --column-names --default-character-set=utf8mb4 --host gateway02.us-east-1.prod.aws.tidbcloud.com --port 4000 --user 3eNQGjqKLjPjVky.9f44687398e8 --database 2DkuAsPf7vUCya3sED7FTv --execute SELECT * FROM messages LIMIT 1;",
+  "rows": [
+    {
+      "id": "1",
+      "studentId": "34",
+      "query": "What scholarships are available for international students?",
+      "response": "You can book the gym through the sports facilities app.",
+      "sentiment": "positive",
+      "category": "Course Registration",
+      "responseTimeMs": "2226",
+      "isResolved": "1",
+      "rating": "4",
+      "createdAt": "2025-11-05 16:49:45"
+    }
+  ],
+  "messages": [],
+  "stdout": "id\tstudentId\tquery\tresponse\tsentiment\tcategory\tresponseTimeMs\tisResolved\trating\tcreatedAt\n1\t34\tWhat scholarships are available for international students?\tYou can book the gym through the sports facilities app.\tpositive\tCourse Registration\t2226\t1\t4\t2025-11-05 16:49:45\n",
+  "stderr": "",
+  "execution_time_ms": 65
+}

@@ -1,0 +1,35 @@
+{
+  "query": "SELECT id, date, totalMessages FROM dailyAnalytics ORDER BY date DESC LIMIT 5;",
+  "command": "mysql --batch --raw --column-names --default-character-set=utf8mb4 --host gateway02.us-east-1.prod.aws.tidbcloud.com --port 4000 --user 3eNQGjqKLjPjVky.9f44687398e8 --database 2DkuAsPf7vUCya3sED7FTv --execute SELECT id, date, totalMessages FROM dailyAnalytics ORDER BY date DESC LIMIT 5;",
+  "rows": [
+    {
+      "id": "31",
+      "date": "2025-12-05 00:00:00",
+      "totalMessages": "177"
+    },
+    {
+      "id": "30",
+      "date": "2025-12-04 00:00:00",
+      "totalMessages": "102"
+    },
+    {
+      "id": "29",
+      "date": "2025-12-03 00:00:00",
+      "totalMessages": "151"
+    },
+    {
+      "id": "28",
+      "date": "2025-12-02 00:00:00",
+      "totalMessages": "197"
+    },
+    {
+      "id": "27",
+      "date": "2025-12-01 00:00:00",
+      "totalMessages": "87"
+    }
+  ],
+  "messages": [],
+  "stdout": "id\tdate\ttotalMessages\n31\t2025-12-05 00:00:00\t177\n30\t2025-12-04 00:00:00\t102\n29\t2025-12-03 00:00:00\t151\n28\t2025-12-02 00:00:00\t197\n27\t2025-12-01 00:00:00\t87\n",
+  "stderr": "",
+  "execution_time_ms": 51
+}
