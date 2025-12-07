@@ -7,6 +7,7 @@ import {
   getDailyAnalytics,
   getAggregatedHourlyData,
   getTopQueryCategories,
+  getTopIndividualQueries,
   getKPISummary,
   getMessages,
   getMessageById,
@@ -82,6 +83,14 @@ export const appRouter = router({
       }).optional())
       .query(async ({ input }) => {
         return await getTopQueryCategories(input?.limit || 10);
+      }),
+
+    getTopIndividualQueries: publicProcedure
+      .input(z.object({
+        limit: z.number().min(1).max(50).default(10),
+      }).optional())
+      .query(async ({ input }) => {
+        return await getTopIndividualQueries(input?.limit || 10);
       }),
 
     getKPISummary: publicProcedure

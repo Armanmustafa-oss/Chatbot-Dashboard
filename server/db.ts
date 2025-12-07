@@ -1091,3 +1091,54 @@ export async function updateEmailLogStatus(id: number, status: 'sent' | 'failed'
 
   return true;
 }
+
+
+/**
+ * Get top individual queries with student and category information
+ */
+export async function getTopIndividualQueries(limit: number = 10) {
+  const db = await getDb();
+  if (!db) return [];
+
+  // Get messages grouped by query text to find most frequent queries
+  const result = await db
+    .select({
+      id: messages.id,
+      query: messages.query,
+      category: messages.category,
+      studentId: messages.studentId,
+      studentName: students.name,
+      createdAt: messages.createdAt,
+      responseTimeMs: messages.responseTimeMs,
+      sentiment: messages.sentiment,
+      isResolved: messages.isResolved,
+    })
+    .from(messages)
+    .leftJoin(students, eq(messages.studentId, students.id))
+    .orderBy(desc(messages.createdAt));
+
+  // Group by query to count occurrences
+  const queryMap = new Map();
+  result.forEach(row => {
+    if (row.query && !queryMap.has(row.query)) {
+      const count = result.filter(r => r.query === row.query).length;
+      const categoryValue = row.category || 'General';
+      queryMap.set(row.query, {
+        query: row.query,
+        category: categoryValue,
+        count: count,
+        studentId: row.studentId,
+        studentName: row.studentName,
+        createdAt: row.createdAt,
+        responseTimeMs: row.responseTimeMs,
+        sentiment: row.sentiment,
+        isResolved: row.isResolved,
+      });
+    }
+  });
+
+  // Sort by count descending and return top limit
+  return Array.from(queryMap.values())
+    .sort((a, b) => b.count - a.count)
+    .slice(0, limit);
+}

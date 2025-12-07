@@ -107,6 +107,9 @@ export default function Home() {
 
   // Top Queries Modal State
   const [isTopQueriesModalOpen, setIsTopQueriesModalOpen] = useState(false);
+  const [topQueriesTab, setTopQueriesTab] = useState<'categories' | 'queries'>('categories');
+  const [selectedCategory, setSelectedCategory] = useState<string | null>(null);
+  const [selectedQuery, setSelectedQuery] = useState<string | null>(null);
 
   // Fetch real data from database
   const { 
@@ -144,6 +147,8 @@ export default function Home() {
 
   const { data: topQueries } = trpc.analytics.getTopQueries.useQuery({ limit: 5 });
   const { data: allQueries } = trpc.analytics.getTopQueries.useQuery({ limit: 50 });
+  const { data: topIndividualQueries } = trpc.analytics.getTopIndividualQueries.useQuery({ limit: 5 });
+  const { data: allIndividualQueries } = trpc.analytics.getTopIndividualQueries.useQuery({ limit: 50 });
 
   // HIGH CONTRAST CHART COLORS - Visible in both light and dark modes
   const chartColors = useMemo(() => ({
@@ -626,7 +631,7 @@ export default function Home() {
             </NeuCard>
           </div>
 
-          {/* Top Queries List */}
+          {/* Top Queries List with Tabs */}
           <div className="relative">
             <MetricCheckbox
               id="topQueries"
@@ -644,44 +649,118 @@ export default function Home() {
                   <CalendarIcon className="h-4 w-4 sm:h-5 sm:w-5 text-foreground" />
                 </div>
               </div>
-              <div className="space-y-3 flex-1 overflow-y-auto">
-                {topQueries && topQueries.length > 0 ? (
-                  topQueries.map((query: any, index: number) => (
-                    <div
-                      key={query.id || index}
-                      onClick={() => navigate(`/messages?category=${encodeURIComponent(query.category)}`)}
-                      className="flex items-center justify-between p-3 rounded-xl bg-muted/50 hover:bg-muted cursor-pointer transition-all group"
-                    >
-                      <div className="flex items-center gap-3">
-                        <span className={`w-7 h-7 rounded-full flex items-center justify-center text-sm font-bold ${
-                          index === 0 ? 'bg-yellow-500 text-white' :
-                          index === 1 ? 'bg-gray-400 text-white' :
-                          index === 2 ? 'bg-amber-600 text-white' :
-                          'bg-primary/20 text-primary'
-                        }`}>
-                          {index + 1}
-                        </span>
-                        <span className="font-medium text-foreground">{query.category}</span>
-                      </div>
-                      <div className="flex items-center gap-2">
-                        <span className="text-sm text-muted-foreground">{query.count} queries</span>
-                        <ChevronRight className="h-4 w-4 text-muted-foreground group-hover:text-foreground transition-colors" />
-                      </div>
-                    </div>
-                  ))
-                ) : (
-                  <div className="flex flex-col items-center justify-center h-full text-muted-foreground">
-                    <CalendarIcon className="h-8 w-8 opacity-50 mb-2" />
-                    <p className="text-sm">No query data available</p>
-                  </div>
-                )}
+              
+              {/* Tabs */}
+              <div className="flex gap-2 mb-4 border-b border-border">
+                <button
+                  onClick={() => setTopQueriesTab('categories')}
+                  className={`px-4 py-2 font-medium text-sm transition-colors ${
+                    topQueriesTab === 'categories'
+                      ? 'text-primary border-b-2 border-primary'
+                      : 'text-muted-foreground hover:text-foreground'
+                  }`}
+                >
+                  Categories
+                </button>
+                <button
+                  onClick={() => setTopQueriesTab('queries')}
+                  className={`px-4 py-2 font-medium text-sm transition-colors ${
+                    topQueriesTab === 'queries'
+                      ? 'text-primary border-b-2 border-primary'
+                      : 'text-muted-foreground hover:text-foreground'
+                  }`}
+                >
+                  Top Queries
+                </button>
               </div>
+              
+              {/* Categories Tab */}
+              {topQueriesTab === 'categories' && (
+                <div className="space-y-3 flex-1 overflow-y-auto">
+                  {topQueries && topQueries.length > 0 ? (
+                    topQueries.map((query: any, index: number) => (
+                      <div
+                        key={query.id || index}
+                        onClick={() => {
+                          setSelectedCategory(query.category);
+                          navigate(`/messages?category=${encodeURIComponent(query.category)}`);
+                        }}
+                        className="flex items-center justify-between p-3 rounded-xl bg-muted/50 hover:bg-muted cursor-pointer transition-all group"
+                      >
+                        <div className="flex items-center gap-3">
+                          <span className={`w-7 h-7 rounded-full flex items-center justify-center text-sm font-bold ${
+                            index === 0 ? 'bg-yellow-500 text-white' :
+                            index === 1 ? 'bg-gray-400 text-white' :
+                            index === 2 ? 'bg-amber-600 text-white' :
+                            'bg-primary/20 text-primary'
+                          }`}>
+                            {index + 1}
+                          </span>
+                          <span className="font-medium text-foreground">{query.category}</span>
+                        </div>
+                        <div className="flex items-center gap-2">
+                          <span className="text-sm text-muted-foreground">{query.count} queries</span>
+                          <ChevronRight className="h-4 w-4 text-muted-foreground group-hover:text-foreground transition-colors" />
+                        </div>
+                      </div>
+                    ))
+                  ) : (
+                    <div className="flex flex-col items-center justify-center h-full text-muted-foreground">
+                      <CalendarIcon className="h-8 w-8 opacity-50 mb-2" />
+                      <p className="text-sm">No category data available</p>
+                    </div>
+                  )}
+                </div>
+              )}
+              
+              {/* Top Queries Tab */}
+              {topQueriesTab === 'queries' && (
+                <div className="space-y-3 flex-1 overflow-y-auto">
+                  {topIndividualQueries && topIndividualQueries.length > 0 ? (
+                    topIndividualQueries.map((query: any, index: number) => (
+                      <div
+                        key={query.query}
+                        onClick={() => {
+                          setSelectedQuery(query.query);
+                          navigate(`/messages?query=${encodeURIComponent(query.query)}`);
+                        }}
+                        className="flex items-center justify-between p-3 rounded-xl bg-muted/50 hover:bg-muted cursor-pointer transition-all group"
+                      >
+                        <div className="flex items-center gap-3 flex-1 min-w-0">
+                          <span className={`w-7 h-7 rounded-full flex items-center justify-center text-sm font-bold flex-shrink-0 ${
+                            index === 0 ? 'bg-yellow-500 text-white' :
+                            index === 1 ? 'bg-gray-400 text-white' :
+                            index === 2 ? 'bg-amber-600 text-white' :
+                            'bg-primary/20 text-primary'
+                          }`}>
+                            {index + 1}
+                          </span>
+                          <div className="flex-1 min-w-0">
+                            <p className="text-sm font-medium text-foreground truncate">{query.query}</p>
+                            <p className="text-xs text-muted-foreground">{query.category}</p>
+                          </div>
+                        </div>
+                        <div className="flex items-center gap-2 flex-shrink-0">
+                          <span className="text-sm text-muted-foreground">{query.count}x</span>
+                          <ChevronRight className="h-4 w-4 text-muted-foreground group-hover:text-foreground transition-colors" />
+                        </div>
+                      </div>
+                    ))
+                  ) : (
+                    <div className="flex flex-col items-center justify-center h-full text-muted-foreground">
+                      <CalendarIcon className="h-8 w-8 opacity-50 mb-2" />
+                      <p className="text-sm">No query data available</p>
+                    </div>
+                  )}
+                </div>
+              )}
+              
               <Button
                 variant="ghost"
                 className="mt-4 w-full text-primary hover:text-primary/80"
                 onClick={() => setIsTopQueriesModalOpen(true)}
               >
-                View All Queries
+                {topQueriesTab === 'categories' ? 'View All Categories' : 'View All Queries'}
               </Button>
             </NeuCard>
           </div>
@@ -714,44 +793,111 @@ export default function Home() {
           />
         )}
 
-        {/* Top Queries Modal */}
+        {/* Top Queries Modal with Tabs */}
         <Dialog open={isTopQueriesModalOpen} onOpenChange={setIsTopQueriesModalOpen}>
-          <DialogContent className="max-w-2xl max-h-[80vh] overflow-hidden flex flex-col">
+          <DialogContent className="max-w-3xl max-h-[80vh] overflow-hidden flex flex-col">
             <DialogHeader>
-              <DialogTitle className="text-xl font-bold">All Query Categories</DialogTitle>
+              <DialogTitle className="text-xl font-bold">Query Analytics</DialogTitle>
             </DialogHeader>
-            <div className="flex-1 overflow-y-auto space-y-2 pr-2">
-              {allQueries && allQueries.length > 0 ? (
-                allQueries.map((query: any, index: number) => (
-                  <div
-                    key={query.id || index}
-                    onClick={() => {
-                      navigate(`/messages?category=${encodeURIComponent(query.category)}`);
-                      setIsTopQueriesModalOpen(false);
-                    }}
-                    className="flex items-center justify-between p-3 rounded-xl bg-muted/50 hover:bg-muted cursor-pointer transition-all group"
-                  >
-                    <div className="flex items-center gap-3">
-                      <span className={`w-7 h-7 rounded-full flex items-center justify-center text-sm font-bold ${
-                        index === 0 ? 'bg-yellow-500 text-white' :
-                        index === 1 ? 'bg-gray-400 text-white' :
-                        index === 2 ? 'bg-amber-600 text-white' :
-                        'bg-primary/20 text-primary'
-                      }`}>
-                        {index + 1}
-                      </span>
-                      <span className="font-medium text-foreground">{query.category}</span>
-                    </div>
-                    <div className="flex items-center gap-2">
-                      <span className="text-sm text-muted-foreground">{query.count} queries</span>
-                      <ChevronRight className="h-4 w-4 text-muted-foreground group-hover:text-foreground transition-colors" />
-                    </div>
-                  </div>
-                ))
-              ) : (
-                <p className="text-center text-muted-foreground py-8">No query categories available</p>
-              )}
+            
+            {/* Tabs */}
+            <div className="flex gap-2 border-b border-border px-6">
+              <button
+                onClick={() => setTopQueriesTab('categories')}
+                className={`px-4 py-2 font-medium text-sm transition-colors ${
+                  topQueriesTab === 'categories'
+                    ? 'text-primary border-b-2 border-primary'
+                    : 'text-muted-foreground hover:text-foreground'
+                }`}
+              >
+                All Categories
+              </button>
+              <button
+                onClick={() => setTopQueriesTab('queries')}
+                className={`px-4 py-2 font-medium text-sm transition-colors ${
+                  topQueriesTab === 'queries'
+                    ? 'text-primary border-b-2 border-primary'
+                    : 'text-muted-foreground hover:text-foreground'
+                }`}
+              >
+                All Queries
+              </button>
             </div>
+            
+            {/* Categories Tab */}
+            {topQueriesTab === 'categories' && (
+              <div className="flex-1 overflow-y-auto space-y-2 pr-2">
+                {allQueries && allQueries.length > 0 ? (
+                  allQueries.map((query: any, index: number) => (
+                    <div
+                      key={query.id || index}
+                      onClick={() => {
+                        navigate(`/messages?category=${encodeURIComponent(query.category)}`);
+                        setIsTopQueriesModalOpen(false);
+                      }}
+                      className="flex items-center justify-between p-3 rounded-xl bg-muted/50 hover:bg-muted cursor-pointer transition-all group"
+                    >
+                      <div className="flex items-center gap-3">
+                        <span className={`w-7 h-7 rounded-full flex items-center justify-center text-sm font-bold ${
+                          index === 0 ? 'bg-yellow-500 text-white' :
+                          index === 1 ? 'bg-gray-400 text-white' :
+                          index === 2 ? 'bg-amber-600 text-white' :
+                          'bg-primary/20 text-primary'
+                        }`}>
+                          {index + 1}
+                        </span>
+                        <span className="font-medium text-foreground">{query.category}</span>
+                      </div>
+                      <div className="flex items-center gap-2">
+                        <span className="text-sm text-muted-foreground">{query.count} queries</span>
+                        <ChevronRight className="h-4 w-4 text-muted-foreground group-hover:text-foreground transition-colors" />
+                      </div>
+                    </div>
+                  ))
+                ) : (
+                  <p className="text-center text-muted-foreground py-8">No query categories available</p>
+                )}
+              </div>
+            )}
+            
+            {/* Queries Tab */}
+            {topQueriesTab === 'queries' && (
+              <div className="flex-1 overflow-y-auto space-y-2 pr-2">
+                {allIndividualQueries && allIndividualQueries.length > 0 ? (
+                  allIndividualQueries.map((query: any, index: number) => (
+                    <div
+                      key={query.query}
+                      onClick={() => {
+                        navigate(`/messages?query=${encodeURIComponent(query.query)}`);
+                        setIsTopQueriesModalOpen(false);
+                      }}
+                      className="flex items-center justify-between p-3 rounded-xl bg-muted/50 hover:bg-muted cursor-pointer transition-all group"
+                    >
+                      <div className="flex items-center gap-3 flex-1 min-w-0">
+                        <span className={`w-7 h-7 rounded-full flex items-center justify-center text-sm font-bold flex-shrink-0 ${
+                          index === 0 ? 'bg-yellow-500 text-white' :
+                          index === 1 ? 'bg-gray-400 text-white' :
+                          index === 2 ? 'bg-amber-600 text-white' :
+                          'bg-primary/20 text-primary'
+                        }`}>
+                          {index + 1}
+                        </span>
+                        <div className="flex-1 min-w-0">
+                          <p className="text-sm font-medium text-foreground truncate">{query.query}</p>
+                          <p className="text-xs text-muted-foreground">{query.category}</p>
+                        </div>
+                      </div>
+                      <div className="flex items-center gap-2 flex-shrink-0">
+                        <span className="text-sm text-muted-foreground">{query.count}x asked</span>
+                        <ChevronRight className="h-4 w-4 text-muted-foreground group-hover:text-foreground transition-colors" />
+                      </div>
+                    </div>
+                  ))
+                ) : (
+                  <p className="text-center text-muted-foreground py-8">No query data available</p>
+                )}
+              </div>
+            )}
           </DialogContent>
         </Dialog>
       </div>

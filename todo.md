@@ -312,14 +312,29 @@
 - [ ] Webhook endpoint for receiving WhatsApp messages (requires backend implementation)
 - [ ] Data ingestion from Supabase/external sources (requires backend implementation)
 
-## Phase 8: Comprehensive UI/UX Improvements and Backend Integrations
+## Phase 8: Analytics Page Differentiation (December 7, 2025)
+- [x] Remove duplicate charts from Analytics page (Message Volume Trend, Sentiment Analysis, Peak Messaging Times)
+- [x] Implement Query Resolution Funnel - shows queries answered vs. escalated by category
+- [x] Implement Response Quality Heatmap - category vs. satisfaction scores matrix
+- [x] Implement User Journey Flow - visualizes conversation patterns and drop-off points
+- [x] Implement Category Performance Trends - line chart showing satisfaction changes over time by category
+
+## Phase 9: Top Queries Display and Navigation (December 7, 2025)
+- [x] Fix Top Student Queries section - display query text and categories
+- [x] Create Top Queries tab with ranked queries and student details  
+- [x] Implement deep linking from Overview → Messages page with query/category filters
+- [x] Add new API endpoint getTopIndividualQueries for fetching individual queries
+- [x] Create modal with tabs for All Categories and All Queries
+- [x] Test navigation flows - clicking queries/categories filters Messages page correctly
+
+## Phase 10: Comprehensive UI/UX Improvements and Backend Integrations
 
 ### Overview Page Chart Fixes
-- [ ] Fix Message Volume Trend chart - ensure visible in both light and dark modes
-- [ ] Fix Sentiment Analysis chart - ensure visible in both light and dark modes
-- [ ] Fix Peak Messaging Times chart - ensure visible in both light and dark modes
-- [ ] Add proper chart colors with sufficient contrast
-- [ ] Add loading states and error handling for charts
+- [x] Fix Message Volume Trend chart - ensure visible in both light and dark modes
+- [x] Fix Sentiment Analysis chart - ensure visible in both light and dark modes
+- [x] Fix Peak Messaging Times chart - ensure visible in both light and dark modes
+- [x] Add proper chart colors with sufficient contrast
+- [x] Add loading states and error handling for charts
 
 ### ROI Intelligence Page Redesign
 - [ ] Improve overall visual layout and readability
@@ -364,3 +379,16 @@
 - [x] Implement Response Quality Heatmap - category vs. satisfaction scores matrix
 - [x] Implement User Journey Flow - visualizes conversation patterns and drop-off points
 - [x] Implement Category Performance Trends - line chart showing satisfaction changes over time by category
+
+
+## Phase 9: Top Queries Display and Navigation (December 7, 2025)
+- [ ] Fix Top Student Queries section - display actual query text and categories instead of just counts
+- [ ] Make category names clickable to show all questions in that category
+- [ ] Add click handler to show query details modal with student, timestamp, and bot response
+- [ ] Implement student name links to navigate to student profile
+- [ ] Create new "Top Queries" tab showing ranked list of most-asked queries
+- [ ] Add "View more queries" button to expand the top queries list
+- [ ] Implement query details view showing all students who asked the query
+- [ ] Add deep linking support for Overview → Categories → Queries → Student Profile navigation
+- [ ] Ensure data persistence across navigation flows
+- [ ] Test all navigation flows and interconnections
