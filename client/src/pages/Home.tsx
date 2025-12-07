@@ -682,8 +682,8 @@ export default function Home() {
                       <div
                         key={query.id || index}
                         onClick={() => {
-                          setSelectedCategory(query.category);
-                          navigate(`/messages?category=${encodeURIComponent(query.category)}`);
+                          setSelectedCategory(query.name);
+                          navigate(`/messages?category=${encodeURIComponent(query.name)}`);
                         }}
                         className="flex items-center justify-between p-3 rounded-xl bg-muted/50 hover:bg-muted cursor-pointer transition-all group"
                       >
@@ -696,7 +696,7 @@ export default function Home() {
                           }`}>
                             {index + 1}
                           </span>
-                          <span className="font-medium text-foreground">{query.category}</span>
+                          <span className="font-medium text-foreground">{query.name}</span>
                         </div>
                         <div className="flex items-center gap-2">
                           <span className="text-sm text-muted-foreground">{query.count} queries</span>
@@ -832,7 +832,7 @@ export default function Home() {
                     <div
                       key={query.id || index}
                       onClick={() => {
-                        navigate(`/messages?category=${encodeURIComponent(query.category)}`);
+                        navigate(`/messages?category=${encodeURIComponent(query.name)}`);
                         setIsTopQueriesModalOpen(false);
                       }}
                       className="flex items-center justify-between p-3 rounded-xl bg-muted/50 hover:bg-muted cursor-pointer transition-all group"
@@ -846,7 +846,7 @@ export default function Home() {
                         }`}>
                           {index + 1}
                         </span>
-                        <span className="font-medium text-foreground">{query.category}</span>
+                        <span className="font-medium text-foreground">{query.name}</span>
                       </div>
                       <div className="flex items-center gap-2">
                         <span className="text-sm text-muted-foreground">{query.count} queries</span>
