@@ -145,8 +145,8 @@ export default function Home() {
     endDate: dateRange.to,
   });
 
-  const { data: topQueries } = trpc.analytics.getTopQueries.useQuery({ limit: 5 });
-  const { data: allQueries } = trpc.analytics.getTopQueries.useQuery({ limit: 50 });
+  const { data: topCategories } = trpc.analytics.getTopQueries.useQuery({ limit: 5 });
+  const { data: allCategories } = trpc.analytics.getTopQueries.useQuery({ limit: 50 });
   const { data: topIndividualQueries } = trpc.analytics.getTopIndividualQueries.useQuery({ limit: 5 });
   const { data: allIndividualQueries } = trpc.analytics.getTopIndividualQueries.useQuery({ limit: 50 });
 
@@ -677,8 +677,8 @@ export default function Home() {
               {/* Categories Tab */}
               {topQueriesTab === 'categories' && (
                 <div className="space-y-3 flex-1 overflow-y-auto">
-                  {topQueries && topQueries.length > 0 ? (
-                    topQueries.map((query: any, index: number) => (
+                  {topCategories && topCategories.length > 0 ? (
+                    topCategories.map((query: any, index: number) => (
                       <div
                         key={query.id || index}
                         onClick={() => {
@@ -787,7 +787,7 @@ export default function Home() {
                 neutral: kpiData?.neutralCount || 0,
                 negative: kpiData?.negativeCount || 0,
               },
-              topQueries: topQueries?.map((q: any) => ({ name: q.category, count: q.count })),
+              topQueries: topCategories?.map((q: any) => ({ name: q.name, count: q.count })),
               dateRange: { from: dateRange.from, to: dateRange.to },
             }}
           />
@@ -827,8 +827,8 @@ export default function Home() {
             {/* Categories Tab */}
             {topQueriesTab === 'categories' && (
               <div className="flex-1 overflow-y-auto space-y-2 pr-2">
-                {allQueries && allQueries.length > 0 ? (
-                  allQueries.map((query: any, index: number) => (
+                {allCategories && allCategories.length > 0 ? (
+                  allCategories.map((query: any, index: number) => (
                     <div
                       key={query.id || index}
                       onClick={() => {

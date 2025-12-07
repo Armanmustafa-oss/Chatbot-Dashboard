@@ -280,218 +280,205 @@ export default function Messages() {
           />
         </div>
 
-        {/* Filter Boxes - Top Aligned */}
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-          {/* Sentiment Filter Box */}
-          <NeuCard className="p-4">
-            <h3 className="text-sm font-semibold text-muted-foreground mb-3 flex items-center gap-2">
-              <MessageSquare className="h-4 w-4" />
+        {/* Filter Boxes - Redesigned with Chips */}
+        <div className="space-y-4">
+          {/* Sentiment Filter - Horizontal Chips */}
+          <NeuCard className="p-5 bg-gradient-to-br from-background via-background to-muted/30">
+            <h3 className="text-sm font-bold text-foreground mb-4 flex items-center gap-2 uppercase tracking-wide">
+              <MessageSquare className="h-5 w-5 text-blue-500" />
               Sentiment
             </h3>
-            <div className="space-y-2">
+            <div className="flex flex-wrap gap-2">
               <button
                 onClick={() => setSentimentFilter("all")}
                 className={cn(
-                  "w-full flex items-center justify-between px-3 py-2 rounded-lg text-sm transition-all",
+                  "px-4 py-2 rounded-full text-sm font-medium transition-all duration-200 flex items-center gap-2 whitespace-nowrap",
                   sentimentFilter === "all"
-                    ? "bg-primary text-primary-foreground shadow-md"
-                    : "hover:bg-muted"
+                    ? "bg-blue-500 text-white shadow-lg shadow-blue-500/30 scale-105"
+                    : "bg-muted hover:bg-muted/80 text-foreground border border-border/50"
                 )}
               >
                 <span>All</span>
-                <span className="text-xs opacity-80">{total.toLocaleString()}</span>
+                <span className="text-xs opacity-75 font-semibold">{total.toLocaleString()}</span>
               </button>
               <button
                 onClick={() => setSentimentFilter("positive")}
                 className={cn(
-                  "w-full flex items-center justify-between px-3 py-2 rounded-lg text-sm transition-all",
+                  "px-4 py-2 rounded-full text-sm font-medium transition-all duration-200 flex items-center gap-2 whitespace-nowrap",
                   sentimentFilter === "positive"
-                    ? "bg-green-500 text-white shadow-md"
-                    : "hover:bg-green-50 dark:hover:bg-green-950"
+                    ? "bg-green-500 text-white shadow-lg shadow-green-500/30 scale-105"
+                    : "bg-green-50 dark:bg-green-950/30 text-foreground border border-green-200 dark:border-green-800/50 hover:bg-green-100 dark:hover:bg-green-900/40"
                 )}
               >
-                <span className="flex items-center gap-2">
-                  <ThumbsUp className="h-4 w-4" />
-                  Positive
-                </span>
-                <span className="text-xs opacity-80">{sentimentCounts.positive}</span>
+                <ThumbsUp className="h-4 w-4" />
+                <span>Positive</span>
+                <span className="text-xs opacity-75 font-semibold">{sentimentCounts.positive}</span>
               </button>
               <button
                 onClick={() => setSentimentFilter("neutral")}
                 className={cn(
-                  "w-full flex items-center justify-between px-3 py-2 rounded-lg text-sm transition-all",
+                  "px-4 py-2 rounded-full text-sm font-medium transition-all duration-200 flex items-center gap-2 whitespace-nowrap",
                   sentimentFilter === "neutral"
-                    ? "bg-gray-500 text-white shadow-md"
-                    : "hover:bg-gray-50 dark:hover:bg-gray-800"
+                    ? "bg-amber-500 text-white shadow-lg shadow-amber-500/30 scale-105"
+                    : "bg-amber-50 dark:bg-amber-950/30 text-foreground border border-amber-200 dark:border-amber-800/50 hover:bg-amber-100 dark:hover:bg-amber-900/40"
                 )}
               >
-                <span className="flex items-center gap-2">
-                  <MessageSquare className="h-4 w-4" />
-                  Neutral
-                </span>
-                <span className="text-xs opacity-80">{sentimentCounts.neutral}</span>
+                <MessageSquare className="h-4 w-4" />
+                <span>Neutral</span>
+                <span className="text-xs opacity-75 font-semibold">{sentimentCounts.neutral}</span>
               </button>
               <button
                 onClick={() => setSentimentFilter("negative")}
                 className={cn(
-                  "w-full flex items-center justify-between px-3 py-2 rounded-lg text-sm transition-all",
+                  "px-4 py-2 rounded-full text-sm font-medium transition-all duration-200 flex items-center gap-2 whitespace-nowrap",
                   sentimentFilter === "negative"
-                    ? "bg-red-500 text-white shadow-md"
-                    : "hover:bg-red-50 dark:hover:bg-red-950"
+                    ? "bg-red-500 text-white shadow-lg shadow-red-500/30 scale-105"
+                    : "bg-red-50 dark:bg-red-950/30 text-foreground border border-red-200 dark:border-red-800/50 hover:bg-red-100 dark:hover:bg-red-900/40"
                 )}
               >
-                <span className="flex items-center gap-2">
-                  <ThumbsDown className="h-4 w-4" />
-                  Negative
-                </span>
-                <span className="text-xs opacity-80">{sentimentCounts.negative}</span>
+                <ThumbsDown className="h-4 w-4" />
+                <span>Negative</span>
+                <span className="text-xs opacity-75 font-semibold">{sentimentCounts.negative}</span>
               </button>
             </div>
           </NeuCard>
 
-          {/* Category Filter Box */}
-          <NeuCard className="p-4">
-            <h3 className="text-sm font-semibold text-muted-foreground mb-3 flex items-center gap-2">
-              <Folder className="h-4 w-4" />
+          {/* Category Filter - Horizontal Chips */}
+          <NeuCard className="p-5 bg-gradient-to-br from-background via-background to-muted/30">
+            <h3 className="text-sm font-bold text-foreground mb-4 flex items-center gap-2 uppercase tracking-wide">
+              <Folder className="h-5 w-5 text-purple-500" />
               Category
             </h3>
-            <div className="space-y-2 max-h-48 overflow-y-auto">
+            <div className="flex flex-wrap gap-2">
               <button
                 onClick={() => setCategoryFilter("all")}
                 className={cn(
-                  "w-full flex items-center justify-between px-3 py-2 rounded-lg text-sm transition-all text-left",
+                  "px-4 py-2 rounded-full text-sm font-medium transition-all duration-200 flex items-center gap-2 whitespace-nowrap",
                   categoryFilter === "all"
-                    ? "bg-primary text-primary-foreground shadow-md"
-                    : "hover:bg-muted"
+                    ? "bg-purple-500 text-white shadow-lg shadow-purple-500/30 scale-105"
+                    : "bg-muted hover:bg-muted/80 text-foreground border border-border/50"
                 )}
               >
-                <span>All Categories</span>
+                All Categories
               </button>
-              {uniqueCategories.slice(0, 8).map(([cat, count]) => (
+              {uniqueCategories.slice(0, 6).map(([cat, count]) => (
                 <button
                   key={cat}
                   onClick={() => setCategoryFilter(cat)}
                   className={cn(
-                    "w-full flex items-center justify-between px-3 py-2 rounded-lg text-sm transition-all text-left",
+                    "px-4 py-2 rounded-full text-sm font-medium transition-all duration-200 flex items-center gap-2 whitespace-nowrap",
                     categoryFilter === cat
-                      ? "bg-primary text-primary-foreground shadow-md"
-                      : "hover:bg-muted"
+                      ? "bg-purple-500 text-white shadow-lg shadow-purple-500/30 scale-105"
+                      : "bg-purple-50 dark:bg-purple-950/30 text-foreground border border-purple-200 dark:border-purple-800/50 hover:bg-purple-100 dark:hover:bg-purple-900/40"
                   )}
                 >
                   <span className="truncate">{cat}</span>
-                  <span className="text-xs opacity-80 ml-2">{count}</span>
+                  <span className="text-xs opacity-75 font-semibold">{count}</span>
                 </button>
               ))}
             </div>
           </NeuCard>
 
-          {/* Response Time Filter Box */}
-          <NeuCard className="p-4">
-            <h3 className="text-sm font-semibold text-muted-foreground mb-3 flex items-center gap-2">
-              <Clock className="h-4 w-4" />
+          {/* Response Time Filter - Horizontal Chips */}
+          <NeuCard className="p-5 bg-gradient-to-br from-background via-background to-muted/30">
+            <h3 className="text-sm font-bold text-foreground mb-4 flex items-center gap-2 uppercase tracking-wide">
+              <Clock className="h-5 w-5 text-emerald-500" />
               Response Time
             </h3>
-            <div className="space-y-2">
+            <div className="flex flex-wrap gap-2">
               <button
                 onClick={() => setResponseTimeFilter("all")}
                 className={cn(
-                  "w-full flex items-center justify-between px-3 py-2 rounded-lg text-sm transition-all",
+                  "px-4 py-2 rounded-full text-sm font-medium transition-all duration-200 flex items-center gap-2 whitespace-nowrap",
                   responseTimeFilter === "all"
-                    ? "bg-primary text-primary-foreground shadow-md"
-                    : "hover:bg-muted"
+                    ? "bg-emerald-500 text-white shadow-lg shadow-emerald-500/30 scale-105"
+                    : "bg-muted hover:bg-muted/80 text-foreground border border-border/50"
                 )}
               >
-                <span>All Times</span>
+                All Times
               </button>
               <button
                 onClick={() => setResponseTimeFilter("instant")}
                 className={cn(
-                  "w-full flex items-center justify-between px-3 py-2 rounded-lg text-sm transition-all",
+                  "px-4 py-2 rounded-full text-sm font-medium transition-all duration-200 flex items-center gap-2 whitespace-nowrap",
                   responseTimeFilter === "instant"
-                    ? "bg-green-500 text-white shadow-md"
-                    : "hover:bg-green-50 dark:hover:bg-green-950"
+                    ? "bg-green-500 text-white shadow-lg shadow-green-500/30 scale-105"
+                    : "bg-green-50 dark:bg-green-950/30 text-foreground border border-green-200 dark:border-green-800/50 hover:bg-green-100 dark:hover:bg-green-900/40"
                 )}
               >
-                <span className="flex items-center gap-2">
-                  <Zap className="h-4 w-4" />
-                  Instant (&lt;1s)
-                </span>
+                <Zap className="h-4 w-4" />
+                <span>Instant</span>
               </button>
               <button
                 onClick={() => setResponseTimeFilter("fast")}
                 className={cn(
-                  "w-full flex items-center justify-between px-3 py-2 rounded-lg text-sm transition-all",
+                  "px-4 py-2 rounded-full text-sm font-medium transition-all duration-200 flex items-center gap-2 whitespace-nowrap",
                   responseTimeFilter === "fast"
-                    ? "bg-blue-500 text-white shadow-md"
-                    : "hover:bg-blue-50 dark:hover:bg-blue-950"
+                    ? "bg-blue-500 text-white shadow-lg shadow-blue-500/30 scale-105"
+                    : "bg-blue-50 dark:bg-blue-950/30 text-foreground border border-blue-200 dark:border-blue-800/50 hover:bg-blue-100 dark:hover:bg-blue-900/40"
                 )}
               >
-                <span className="flex items-center gap-2">
-                  <CheckCircle className="h-4 w-4" />
-                  Fast (1-3s)
-                </span>
+                <CheckCircle className="h-4 w-4" />
+                <span>Fast</span>
               </button>
               <button
                 onClick={() => setResponseTimeFilter("moderate")}
                 className={cn(
-                  "w-full flex items-center justify-between px-3 py-2 rounded-lg text-sm transition-all",
+                  "px-4 py-2 rounded-full text-sm font-medium transition-all duration-200 flex items-center gap-2 whitespace-nowrap",
                   responseTimeFilter === "moderate"
-                    ? "bg-yellow-500 text-white shadow-md"
-                    : "hover:bg-yellow-50 dark:hover:bg-yellow-950"
+                    ? "bg-yellow-500 text-white shadow-lg shadow-yellow-500/30 scale-105"
+                    : "bg-yellow-50 dark:bg-yellow-950/30 text-foreground border border-yellow-200 dark:border-yellow-800/50 hover:bg-yellow-100 dark:hover:bg-yellow-900/40"
                 )}
               >
-                <span className="flex items-center gap-2">
-                  <AlertCircle className="h-4 w-4" />
-                  Moderate (3-10s)
-                </span>
+                <AlertCircle className="h-4 w-4" />
+                <span>Moderate</span>
               </button>
               <button
                 onClick={() => setResponseTimeFilter("slow")}
                 className={cn(
-                  "w-full flex items-center justify-between px-3 py-2 rounded-lg text-sm transition-all",
+                  "px-4 py-2 rounded-full text-sm font-medium transition-all duration-200 flex items-center gap-2 whitespace-nowrap",
                   responseTimeFilter === "slow"
-                    ? "bg-red-500 text-white shadow-md"
-                    : "hover:bg-red-50 dark:hover:bg-red-950"
+                    ? "bg-red-500 text-white shadow-lg shadow-red-500/30 scale-105"
+                    : "bg-red-50 dark:bg-red-950/30 text-foreground border border-red-200 dark:border-red-800/50 hover:bg-red-100 dark:hover:bg-red-900/40"
                 )}
               >
-                <span className="flex items-center gap-2">
-                  <XCircle className="h-4 w-4" />
-                  Slow (&gt;10s)
-                </span>
+                <XCircle className="h-4 w-4" />
+                <span>Slow</span>
               </button>
             </div>
           </NeuCard>
 
-          {/* Rating Filter Box */}
-          <NeuCard className="p-4">
-            <h3 className="text-sm font-semibold text-muted-foreground mb-3 flex items-center gap-2">
-              ⭐ Rating
+          {/* Rating Filter - Horizontal Chips */}
+          <NeuCard className="p-5 bg-gradient-to-br from-background via-background to-muted/30">
+            <h3 className="text-sm font-bold text-foreground mb-4 flex items-center gap-2 uppercase tracking-wide">
+              <span className="text-yellow-500">⭐</span>
+              Rating
             </h3>
-            <div className="space-y-2">
+            <div className="flex flex-wrap gap-2">
               <button
                 onClick={() => setRatingFilter("all")}
                 className={cn(
-                  "w-full flex items-center justify-between px-3 py-2 rounded-lg text-sm transition-all",
+                  "px-4 py-2 rounded-full text-sm font-medium transition-all duration-200 flex items-center gap-2 whitespace-nowrap",
                   ratingFilter === "all"
-                    ? "bg-primary text-primary-foreground shadow-md"
-                    : "hover:bg-muted"
+                    ? "bg-yellow-500 text-white shadow-lg shadow-yellow-500/30 scale-105"
+                    : "bg-muted hover:bg-muted/80 text-foreground border border-border/50"
                 )}
               >
-                <span>All Ratings</span>
+                All Ratings
               </button>
               {[5, 4, 3, 2, 1].map((rating) => (
                 <button
                   key={rating}
                   onClick={() => setRatingFilter(String(rating))}
                   className={cn(
-                    "w-full flex items-center px-3 py-2 rounded-lg text-sm transition-all",
+                    "px-4 py-2 rounded-full text-sm font-medium transition-all duration-200 flex items-center gap-2 whitespace-nowrap",
                     ratingFilter === String(rating)
-                      ? "bg-yellow-500 text-white shadow-md"
-                      : "hover:bg-yellow-50 dark:hover:bg-yellow-950"
+                      ? "bg-yellow-500 text-white shadow-lg shadow-yellow-500/30 scale-105"
+                      : "bg-yellow-50 dark:bg-yellow-950/30 text-foreground border border-yellow-200 dark:border-yellow-800/50 hover:bg-yellow-100 dark:hover:bg-yellow-900/40"
                   )}
                 >
                   <span className="text-yellow-500">{"★".repeat(rating)}</span>
-                  <span className="text-gray-300">{"☆".repeat(5 - rating)}</span>
+                  <span className="text-gray-400">{"☆".repeat(5 - rating)}</span>
                 </button>
               ))}
             </div>
