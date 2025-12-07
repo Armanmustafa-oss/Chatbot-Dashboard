@@ -43,6 +43,16 @@ import {
   logEmailSend,
 } from "./db";
 
+import {
+  getAllConversations,
+  getConversationsByDateRange,
+  getConversationsByUser,
+  getConversationsBySentiment,
+  getConversationsByIntent,
+  getConversationStats,
+  testSupabaseConnection,
+} from "./supabase";
+
 export const appRouter = router({
     // if you need to use socket.io, read and register route in server/_core/index.ts, all api should start with '/api/' so that the gateway can route correctly
   system: systemRouter,
@@ -455,6 +465,61 @@ export const appRouter = router({
         // In a real implementation, you would send the email here using SendGrid, etc.
         // For now, we'll simulate success
         return { success: true, logId: log?.id };
+      }),
+  }),
+
+  // Supabase Chatbot Data Router
+  chatbot: router({
+    getConversations: publicProcedure
+      .input(z.object({
+        limit: z.number().min(1).max(1000).default(100),
+      }).optional())
+      .query(async ({ input }) => {
+        return await getAllConversations(input?.limit || 100);
+      }),
+
+    getConversationsByDateRange: publicProcedure
+      .input(z.object({
+        startDate: z.string(),
+        endDate: z.string(),
+      }))
+      .query(async ({ input }) => {
+        return await getConversationsByDateRange(input.startDate, input.endDate);
+      }),
+
+    getConversationsByUser: publicProcedure
+      .input(z.object({
+        userId: z.string(),
+      }))
+      .query(async ({ input }) => {
+        return await getConversationsByUser(input.userId);
+      }),
+
+    getConversationsBySentiment: publicProcedure
+      .input(z.object({
+        sentiment: z.string(),
+      }))
+      .query(async ({ input }) => {
+        return await getConversationsBySentiment(input.sentiment);
+      }),
+
+    getConversationsByIntent: publicProcedure
+      .input(z.object({
+        intent: z.string(),
+      }))
+      .query(async ({ input }) => {
+        return await getConversationsByIntent(input.intent);
+      }),
+
+    getStats: publicProcedure
+      .query(async () => {
+        return await getConversationStats();
+      }),
+
+    testConnection: publicProcedure
+      .query(async () => {
+        const isConnected = await testSupabaseConnection();
+        return { isConnected };
       }),
   }),
 });
