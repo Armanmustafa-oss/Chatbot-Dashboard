@@ -26,6 +26,20 @@ import {
   detectSatisfactionDecline,
   getHighVolumeCategories,
   reactivateSnoozedNotifications,
+  getEmailRecipients,
+  addEmailRecipient,
+  updateEmailRecipient,
+  removeEmailRecipient,
+  getApiKeys,
+  createApiKey,
+  validateApiKey,
+  revokeApiKey,
+  getScheduledReports,
+  createScheduledReport,
+  updateScheduledReport,
+  deleteScheduledReport,
+  getEmailLogs,
+  logEmailSend,
 } from "./db";
 
 export const appRouter = router({
@@ -258,6 +272,180 @@ export const appRouter = router({
     reactivateSnoozed: publicProcedure
       .mutation(async () => {
         return await reactivateSnoozedNotifications();
+      }),
+  }),
+
+  // Email Recipients Router
+  emailRecipients: router({
+    list: publicProcedure
+      .query(async () => {
+        return await getEmailRecipients();
+      }),
+
+    add: publicProcedure
+      .input(z.object({
+        email: z.string().email(),
+        name: z.string().optional(),
+        notifyOnCritical: z.boolean().default(true),
+        notifyOnWarning: z.boolean().default(true),
+        notifyOnInfo: z.boolean().default(false),
+      }))
+      .mutation(async ({ input }) => {
+        return await addEmailRecipient(input);
+      }),
+
+    update: publicProcedure
+      .input(z.object({
+        id: z.number(),
+        notifyOnCritical: z.boolean().optional(),
+        notifyOnWarning: z.boolean().optional(),
+        notifyOnInfo: z.boolean().optional(),
+      }))
+      .mutation(async ({ input }) => {
+        const { id, ...data } = input;
+        return await updateEmailRecipient(id, data);
+      }),
+
+    remove: publicProcedure
+      .input(z.object({ id: z.number() }))
+      .mutation(async ({ input }) => {
+        return await removeEmailRecipient(input.id);
+      }),
+  }),
+
+  // API Keys Router
+  apiKeys: router({
+    list: publicProcedure
+      .query(async () => {
+        return await getApiKeys();
+      }),
+
+    create: publicProcedure
+      .input(z.object({
+        name: z.string().min(1).max(128),
+        permissions: z.array(z.string()).optional(),
+        expiresInDays: z.number().min(1).max(365).optional(),
+      }))
+      .mutation(async ({ input, ctx }) => {
+        const expiresAt = input.expiresInDays 
+          ? new Date(Date.now() + input.expiresInDays * 24 * 60 * 60 * 1000)
+          : undefined;
+        return await createApiKey({
+          name: input.name,
+          permissions: input.permissions,
+          expiresAt,
+          createdBy: ctx.user?.id,
+        });
+      }),
+
+    validate: publicProcedure
+      .input(z.object({ key: z.string() }))
+      .query(async ({ input }) => {
+        const apiKey = await validateApiKey(input.key);
+        return { valid: !!apiKey, permissions: apiKey?.permissions };
+      }),
+
+    revoke: publicProcedure
+      .input(z.object({ id: z.number() }))
+      .mutation(async ({ input }) => {
+        return await revokeApiKey(input.id);
+      }),
+  }),
+
+  // Scheduled Reports Router
+  scheduledReports: router({
+    list: publicProcedure
+      .query(async () => {
+        return await getScheduledReports();
+      }),
+
+    create: publicProcedure
+      .input(z.object({
+        name: z.string().min(1).max(128),
+        reportType: z.enum(['daily', 'weekly', 'monthly']),
+        format: z.enum(['pdf', 'excel', 'csv']),
+        recipients: z.array(z.string().email()),
+        includeMetrics: z.array(z.string()).optional(),
+      }))
+      .mutation(async ({ input }) => {
+        // Calculate next send time based on report type
+        const now = new Date();
+        let nextSendAt: Date;
+        
+        switch (input.reportType) {
+          case 'daily':
+            nextSendAt = new Date(now.getTime() + 24 * 60 * 60 * 1000);
+            nextSendAt.setHours(8, 0, 0, 0); // 8 AM next day
+            break;
+          case 'weekly':
+            nextSendAt = new Date(now.getTime() + 7 * 24 * 60 * 60 * 1000);
+            nextSendAt.setHours(8, 0, 0, 0); // 8 AM next week
+            break;
+          case 'monthly':
+            nextSendAt = new Date(now.getFullYear(), now.getMonth() + 1, 1, 8, 0, 0);
+            break;
+        }
+
+        return await createScheduledReport({
+          name: input.name,
+          reportType: input.reportType,
+          format: input.format,
+          recipients: JSON.stringify(input.recipients),
+          includeMetrics: input.includeMetrics ? JSON.stringify(input.includeMetrics) : null,
+          nextSendAt,
+        });
+      }),
+
+    update: publicProcedure
+      .input(z.object({
+        id: z.number(),
+        name: z.string().optional(),
+        reportType: z.enum(['daily', 'weekly', 'monthly']).optional(),
+        format: z.enum(['pdf', 'excel', 'csv']).optional(),
+        recipients: z.array(z.string().email()).optional(),
+        isActive: z.boolean().optional(),
+      }))
+      .mutation(async ({ input }) => {
+        const { id, recipients, ...data } = input;
+        return await updateScheduledReport(id, {
+          ...data,
+          recipients: recipients ? JSON.stringify(recipients) : undefined,
+        });
+      }),
+
+    delete: publicProcedure
+      .input(z.object({ id: z.number() }))
+      .mutation(async ({ input }) => {
+        return await deleteScheduledReport(input.id);
+      }),
+  }),
+
+  // Email Logs Router
+  emailLogs: router({
+    list: publicProcedure
+      .input(z.object({ limit: z.number().min(1).max(500).default(100) }).optional())
+      .query(async ({ input }) => {
+        return await getEmailLogs(input?.limit || 100);
+      }),
+
+    send: publicProcedure
+      .input(z.object({
+        recipientEmail: z.string().email(),
+        subject: z.string(),
+        type: z.enum(['notification', 'report', 'alert']),
+      }))
+      .mutation(async ({ input }) => {
+        // Log the email send attempt
+        const log = await logEmailSend({
+          recipientEmail: input.recipientEmail,
+          subject: input.subject,
+          type: input.type,
+          status: 'pending',
+        });
+        
+        // In a real implementation, you would send the email here using SendGrid, etc.
+        // For now, we'll simulate success
+        return { success: true, logId: log?.id };
       }),
   }),
 });

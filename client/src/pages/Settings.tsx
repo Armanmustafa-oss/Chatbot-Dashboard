@@ -10,6 +10,15 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import { Switch } from "@/components/ui/switch";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 import { useAuth } from "@/_core/hooks/useAuth";
 import { useTheme } from "@/contexts/ThemeContext";
 import {
@@ -25,18 +34,26 @@ import {
   AlertTriangle,
   Bell,
   BellRing,
+  Calendar,
   Check,
+  Clock,
+  Copy,
   Database,
   Download,
+  Eye,
+  EyeOff,
   FileSpreadsheet,
   FileText,
   Globe,
+  Key,
+  Link2,
   Lock,
   LogOut,
   Mail,
   Moon,
   Palette,
   Plus,
+  RefreshCw,
   Save,
   Send,
   Shield,
@@ -44,14 +61,31 @@ import {
   Trash2,
   User,
   X,
+  Zap,
 } from "lucide-react";
 import { useState, useEffect } from "react";
+import { format } from "date-fns";
 
-interface NotificationRecipient {
-  id: string;
-  email: string;
+interface ApiKeyDisplay {
+  id: number;
   name: string;
-  alertTypes: string[];
+  keyPrefix: string;
+  permissions: string | null;
+  lastUsedAt: Date | null;
+  expiresAt: Date | null;
+  isActive: boolean;
+  createdAt: Date;
+}
+
+interface ScheduledReportDisplay {
+  id: number;
+  name: string;
+  reportType: "daily" | "weekly" | "monthly";
+  format: "pdf" | "excel" | "csv";
+  recipients: string;
+  isActive: boolean;
+  lastSentAt: Date | null;
+  nextSendAt: Date | null;
 }
 
 export default function Settings() {
@@ -60,8 +94,23 @@ export default function Settings() {
   const [showLogoutConfirm, setShowLogoutConfirm] = useState(false);
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
   const [showAddRecipient, setShowAddRecipient] = useState(false);
+  const [showCreateApiKey, setShowCreateApiKey] = useState(false);
+  const [showNewApiKey, setShowNewApiKey] = useState(false);
+  const [showCreateReport, setShowCreateReport] = useState(false);
   const [exportFormat, setExportFormat] = useState<"csv" | "excel" | "pdf" | "word">("csv");
   const [isSaving, setIsSaving] = useState(false);
+  
+  // New API key state
+  const [newKeyName, setNewKeyName] = useState("");
+  const [newKeyExpiry, setNewKeyExpiry] = useState<string>("90");
+  const [generatedKey, setGeneratedKey] = useState("");
+  const [showGeneratedKey, setShowGeneratedKey] = useState(false);
+  
+  // New scheduled report state
+  const [newReportName, setNewReportName] = useState("");
+  const [newReportType, setNewReportType] = useState<"daily" | "weekly" | "monthly">("weekly");
+  const [newReportFormat, setNewReportFormat] = useState<"pdf" | "excel" | "csv">("pdf");
+  const [newReportRecipients, setNewReportRecipients] = useState("");
   
   // Appearance settings
   const [compactView, setCompactView] = useState(false);
@@ -76,15 +125,11 @@ export default function Settings() {
   const [criticalAlerts, setCriticalAlerts] = useState(true);
   const [responseTimeAlerts, setResponseTimeAlerts] = useState(true);
   
-  // Email recipients
-  const [recipients, setRecipients] = useState<NotificationRecipient[]>([
-    { id: "1", email: "admin@university.edu", name: "Admin Team", alertTypes: ["critical", "weekly"] },
-    { id: "2", email: "support@university.edu", name: "Support Team", alertTypes: ["critical", "satisfaction"] },
-  ]);
+  // Email recipient state
   const [newRecipientEmail, setNewRecipientEmail] = useState("");
   const [newRecipientName, setNewRecipientName] = useState("");
 
-  // Fetch analytics data for export
+  // Fetch data
   const { data: dailyData } = trpc.analytics.getDailyData.useQuery({
     startDate: new Date(Date.now() - 30 * 24 * 60 * 60 * 1000),
     endDate: new Date(),
@@ -93,6 +138,67 @@ export default function Settings() {
   const { data: kpiData } = trpc.analytics.getKPISummary.useQuery({
     startDate: new Date(Date.now() - 30 * 24 * 60 * 60 * 1000),
     endDate: new Date(),
+  });
+
+  const { data: apiKeys, refetch: refetchApiKeys } = trpc.apiKeys.list.useQuery();
+  const { data: emailRecipients, refetch: refetchRecipients } = trpc.emailRecipients.list.useQuery();
+  const { data: scheduledReports, refetch: refetchReports } = trpc.scheduledReports.list.useQuery();
+
+  const createApiKeyMutation = trpc.apiKeys.create.useMutation({
+    onSuccess: (data) => {
+      if (data) {
+        setGeneratedKey(data.key);
+        setShowCreateApiKey(false);
+        setShowNewApiKey(true);
+        setNewKeyName("");
+        refetchApiKeys();
+        toast.success("API key created successfully!");
+      }
+    },
+    onError: () => {
+      toast.error("Failed to create API key");
+    },
+  });
+
+  const revokeApiKeyMutation = trpc.apiKeys.revoke.useMutation({
+    onSuccess: () => {
+      refetchApiKeys();
+      toast.success("API key revoked");
+    },
+  });
+
+  const addRecipientMutation = trpc.emailRecipients.add.useMutation({
+    onSuccess: () => {
+      refetchRecipients();
+      setShowAddRecipient(false);
+      setNewRecipientEmail("");
+      setNewRecipientName("");
+      toast.success("Email recipient added");
+    },
+  });
+
+  const removeRecipientMutation = trpc.emailRecipients.remove.useMutation({
+    onSuccess: () => {
+      refetchRecipients();
+      toast.success("Recipient removed");
+    },
+  });
+
+  const createReportMutation = trpc.scheduledReports.create.useMutation({
+    onSuccess: () => {
+      refetchReports();
+      setShowCreateReport(false);
+      setNewReportName("");
+      setNewReportRecipients("");
+      toast.success("Scheduled report created");
+    },
+  });
+
+  const deleteReportMutation = trpc.scheduledReports.delete.useMutation({
+    onSuccess: () => {
+      refetchReports();
+      toast.success("Report schedule deleted");
+    },
   });
 
   // Load settings from localStorage
@@ -116,12 +222,10 @@ export default function Settings() {
   const handleSave = async () => {
     setIsSaving(true);
     
-    // Save to localStorage
     localStorage.setItem("compact-view", String(compactView));
     localStorage.setItem("animations-enabled", String(animationsEnabled));
     localStorage.setItem("high-contrast", String(highContrast));
     
-    // Simulate API call
     await new Promise((resolve) => setTimeout(resolve, 500));
     
     setIsSaving(false);
@@ -188,29 +292,52 @@ export default function Settings() {
     toast.success("Data deletion request submitted. This may take up to 24 hours.");
   };
 
+  const handleCreateApiKey = () => {
+    if (!newKeyName.trim()) {
+      toast.error("Please enter a name for the API key");
+      return;
+    }
+    
+    createApiKeyMutation.mutate({
+      name: newKeyName,
+      expiresInDays: parseInt(newKeyExpiry) || undefined,
+    });
+  };
+
+  const handleCopyApiKey = () => {
+    navigator.clipboard.writeText(generatedKey);
+    toast.success("API key copied to clipboard");
+  };
+
   const handleAddRecipient = () => {
     if (!newRecipientEmail || !newRecipientName) {
       toast.error("Please fill in all fields");
       return;
     }
     
-    const newRecipient: NotificationRecipient = {
-      id: Date.now().toString(),
+    addRecipientMutation.mutate({
       email: newRecipientEmail,
       name: newRecipientName,
-      alertTypes: ["critical"],
-    };
-    
-    setRecipients([...recipients, newRecipient]);
-    setNewRecipientEmail("");
-    setNewRecipientName("");
-    setShowAddRecipient(false);
-    toast.success("Recipient added successfully");
+      notifyOnCritical: true,
+      notifyOnWarning: true,
+      notifyOnInfo: false,
+    });
   };
 
-  const handleRemoveRecipient = (id: string) => {
-    setRecipients(recipients.filter((r) => r.id !== id));
-    toast.success("Recipient removed");
+  const handleCreateReport = () => {
+    if (!newReportName.trim() || !newReportRecipients.trim()) {
+      toast.error("Please fill in all required fields");
+      return;
+    }
+    
+    const recipients = newReportRecipients.split(",").map(e => e.trim()).filter(e => e);
+    
+    createReportMutation.mutate({
+      name: newReportName,
+      reportType: newReportType,
+      format: newReportFormat,
+      recipients,
+    });
   };
 
   const handleTestNotification = () => {
@@ -237,7 +364,7 @@ export default function Settings() {
               Settings
             </h1>
             <p className="text-sm sm:text-base text-muted-foreground mt-1">
-              Configure your dashboard preferences and manage your account
+              Configure your dashboard preferences and manage integrations
             </p>
           </div>
 
@@ -248,447 +375,673 @@ export default function Settings() {
             disabled={isSaving}
           >
             {isSaving ? (
-              <>
-                <div className="h-4 w-4 border-2 border-white/30 border-t-white rounded-full animate-spin" />
-                Saving...
-              </>
+              <RefreshCw className="h-4 w-4 animate-spin" />
             ) : (
-              <>
-                <Save className="h-4 w-4" />
-                Save Changes
-              </>
+              <Save className="h-4 w-4" />
             )}
+            Save Changes
           </Button>
         </div>
 
-        {/* User Profile Card */}
-        {user && (
-          <NeuCard className="bg-gradient-to-r from-primary/5 to-transparent">
-            <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
-              <div className="flex items-center gap-4">
-                <div className="h-14 w-14 rounded-full bg-primary/10 flex items-center justify-center">
-                  <User className="h-7 w-7 text-primary" />
-                </div>
+        {/* Settings Grid */}
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+          {/* Profile Section */}
+          <NeuCard className="p-6">
+            <div className="flex items-center gap-3 mb-6">
+              <div className="h-10 w-10 rounded-full bg-primary/10 flex items-center justify-center">
+                <User className="h-5 w-5 text-primary" />
+              </div>
+              <div>
+                <h2 className="text-lg font-bold">Profile</h2>
+                <p className="text-sm text-muted-foreground">Your account information</p>
+              </div>
+            </div>
+
+            <div className="space-y-4">
+              <div className="flex items-center justify-between p-4 bg-muted/50 rounded-lg">
                 <div>
-                  <h3 className="font-bold text-lg text-foreground">{user.name || "Administrator"}</h3>
-                  <p className="text-sm text-muted-foreground">{user.email || "admin@university.edu"}</p>
-                  <span className="inline-block mt-1 px-2 py-0.5 rounded-full text-xs font-medium bg-primary/10 text-primary">
-                    {user.role || "Admin"}
-                  </span>
+                  <p className="font-medium">{user?.name || "Dashboard User"}</p>
+                  <p className="text-sm text-muted-foreground">{user?.email || "admin@university.edu"}</p>
+                </div>
+                <div className="h-12 w-12 rounded-full bg-gradient-to-br from-primary to-primary/60 flex items-center justify-center text-primary-foreground font-bold text-lg">
+                  {(user?.name || "U")[0].toUpperCase()}
                 </div>
               </div>
+
               <Button
-                variant="outline"
-                onClick={() => setShowLogoutConfirm(true)}
-                className="gap-2 text-destructive hover:text-destructive hover:bg-destructive/10 h-11"
+                variant="destructive"
+                className="w-full gap-2 h-11"
                 style={{ minHeight: "44px" }}
+                onClick={() => setShowLogoutConfirm(true)}
               >
                 <LogOut className="h-4 w-4" />
                 Logout
               </Button>
             </div>
           </NeuCard>
-        )}
-      </div>
 
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 sm:gap-6">
-        {/* Notifications */}
-        <NeuCard>
-          <div className="flex items-center gap-3 mb-6">
-            <div className="p-2 bg-primary/10 rounded-lg">
-              <Bell className="h-5 w-5 text-primary" />
-            </div>
-            <div>
-              <h3 className="font-semibold text-foreground">Notification Preferences</h3>
-              <p className="text-sm text-muted-foreground">Configure alert types and delivery</p>
-            </div>
-          </div>
-
-          <div className="space-y-4">
-            <div className="flex items-center justify-between gap-4">
-              <div className="flex-1 min-w-0">
-                <p className="font-medium text-foreground text-sm sm:text-base">Critical Alerts</p>
-                <p className="text-xs sm:text-sm text-muted-foreground">Immediate alerts for urgent issues</p>
-              </div>
-              <Switch checked={criticalAlerts} onCheckedChange={setCriticalAlerts} />
-            </div>
-            <div className="flex items-center justify-between gap-4">
-              <div className="flex-1 min-w-0">
-                <p className="font-medium text-foreground text-sm sm:text-base">Low Satisfaction Alerts</p>
-                <p className="text-xs sm:text-sm text-muted-foreground">Alert when satisfaction drops below 80%</p>
-              </div>
-              <Switch checked={lowSatisfactionAlerts} onCheckedChange={setLowSatisfactionAlerts} />
-            </div>
-            <div className="flex items-center justify-between gap-4">
-              <div className="flex-1 min-w-0">
-                <p className="font-medium text-foreground text-sm sm:text-base">Response Time Alerts</p>
-                <p className="text-xs sm:text-sm text-muted-foreground">Alert when response time exceeds threshold</p>
-              </div>
-              <Switch checked={responseTimeAlerts} onCheckedChange={setResponseTimeAlerts} />
-            </div>
-            <div className="flex items-center justify-between gap-4">
-              <div className="flex-1 min-w-0">
-                <p className="font-medium text-foreground text-sm sm:text-base">Knowledge Gap Alerts</p>
-                <p className="text-xs sm:text-sm text-muted-foreground">Notify when new gaps are detected</p>
-              </div>
-              <Switch checked={knowledgeGapAlerts} onCheckedChange={setKnowledgeGapAlerts} />
-            </div>
-            <div className="flex items-center justify-between gap-4">
-              <div className="flex-1 min-w-0">
-                <p className="font-medium text-foreground text-sm sm:text-base">Daily Email Summary</p>
-                <p className="text-xs sm:text-sm text-muted-foreground">Receive daily summary emails</p>
-              </div>
-              <Switch checked={emailAlerts} onCheckedChange={setEmailAlerts} />
-            </div>
-            <div className="flex items-center justify-between gap-4">
-              <div className="flex-1 min-w-0">
-                <p className="font-medium text-foreground text-sm sm:text-base">Weekly Reports</p>
-                <p className="text-xs sm:text-sm text-muted-foreground">Receive weekly analytics reports</p>
-              </div>
-              <Switch checked={weeklyReports} onCheckedChange={setWeeklyReports} />
-            </div>
-          </div>
-
-          <div className="mt-4 pt-4 border-t border-border">
-            <Button
-              variant="outline"
-              className="w-full gap-2 neu-flat border-0 h-11"
-              onClick={handleTestNotification}
-              style={{ minHeight: "44px" }}
-            >
-              <Send className="h-4 w-4" />
-              Send Test Notification
-            </Button>
-          </div>
-        </NeuCard>
-
-        {/* Email Recipients */}
-        <NeuCard>
-          <div className="flex items-center justify-between mb-6">
-            <div className="flex items-center gap-3">
-              <div className="p-2 bg-blue-100 rounded-lg">
-                <Mail className="h-5 w-5 text-blue-600" />
+          {/* Appearance Section */}
+          <NeuCard className="p-6">
+            <div className="flex items-center gap-3 mb-6">
+              <div className="h-10 w-10 rounded-full bg-purple-100 dark:bg-purple-900/30 flex items-center justify-center">
+                <Palette className="h-5 w-5 text-purple-600 dark:text-purple-400" />
               </div>
               <div>
-                <h3 className="font-semibold text-foreground">Email Recipients</h3>
-                <p className="text-sm text-muted-foreground">Manage notification recipients</p>
+                <h2 className="text-lg font-bold">Appearance</h2>
+                <p className="text-sm text-muted-foreground">Customize your experience</p>
               </div>
             </div>
-            <Button
-              variant="outline"
-              size="sm"
-              onClick={() => setShowAddRecipient(true)}
-              className="gap-1 h-9"
-            >
-              <Plus className="h-4 w-4" />
-              Add
-            </Button>
-          </div>
 
-          <div className="space-y-3">
-            {recipients.map((recipient) => (
-              <div
-                key={recipient.id}
-                className="flex items-center justify-between p-3 bg-muted/30 rounded-xl"
-              >
-                <div className="flex-1 min-w-0">
-                  <p className="font-medium text-foreground text-sm truncate">{recipient.name}</p>
-                  <p className="text-xs text-muted-foreground truncate">{recipient.email}</p>
-                  <div className="flex gap-1 mt-1 flex-wrap">
-                    {recipient.alertTypes.map((type) => (
-                      <span
-                        key={type}
-                        className="px-1.5 py-0.5 rounded text-[10px] bg-primary/10 text-primary"
-                      >
-                        {type}
-                      </span>
-                    ))}
+            <div className="space-y-4">
+              <div className="flex items-center justify-between p-4 bg-muted/50 rounded-lg">
+                <div className="flex items-center gap-3">
+                  {theme === "dark" ? <Moon className="h-5 w-5" /> : <Sun className="h-5 w-5" />}
+                  <div>
+                    <p className="font-medium">Dark Mode</p>
+                    <p className="text-sm text-muted-foreground">Toggle dark/light theme</p>
                   </div>
                 </div>
+                <Switch checked={theme === "dark"} onCheckedChange={handleThemeToggle} />
+              </div>
+
+              <div className="flex items-center justify-between p-4 bg-muted/50 rounded-lg">
+                <div>
+                  <p className="font-medium">Compact View</p>
+                  <p className="text-sm text-muted-foreground">Reduce padding and spacing</p>
+                </div>
+                <Switch checked={compactView} onCheckedChange={setCompactView} />
+              </div>
+
+              <div className="flex items-center justify-between p-4 bg-muted/50 rounded-lg">
+                <div>
+                  <p className="font-medium">Animations</p>
+                  <p className="text-sm text-muted-foreground">Enable smooth transitions</p>
+                </div>
+                <Switch checked={animationsEnabled} onCheckedChange={setAnimationsEnabled} />
+              </div>
+
+              <div className="flex items-center justify-between p-4 bg-muted/50 rounded-lg">
+                <div>
+                  <p className="font-medium">High Contrast</p>
+                  <p className="text-sm text-muted-foreground">Improve accessibility</p>
+                </div>
+                <Switch checked={highContrast} onCheckedChange={setHighContrast} />
+              </div>
+            </div>
+          </NeuCard>
+
+          {/* API Integration Section */}
+          <NeuCard className="p-6 lg:col-span-2">
+            <div className="flex items-center justify-between mb-6">
+              <div className="flex items-center gap-3">
+                <div className="h-10 w-10 rounded-full bg-green-100 dark:bg-green-900/30 flex items-center justify-center">
+                  <Key className="h-5 w-5 text-green-600 dark:text-green-400" />
+                </div>
+                <div>
+                  <h2 className="text-lg font-bold">API Integration</h2>
+                  <p className="text-sm text-muted-foreground">Connect external services like WhatsApp bots</p>
+                </div>
+              </div>
+              <Button onClick={() => setShowCreateApiKey(true)} className="gap-2">
+                <Plus className="h-4 w-4" />
+                Generate API Key
+              </Button>
+            </div>
+
+            {/* API Keys List */}
+            <div className="space-y-3">
+              {apiKeys && apiKeys.length > 0 ? (
+                apiKeys.map((key) => (
+                  <div
+                    key={key.id}
+                    className="flex items-center justify-between p-4 bg-muted/50 rounded-lg border"
+                  >
+                    <div className="flex items-center gap-4">
+                      <div className="h-10 w-10 rounded-lg bg-green-100 dark:bg-green-900/30 flex items-center justify-center">
+                        <Key className="h-5 w-5 text-green-600 dark:text-green-400" />
+                      </div>
+                      <div>
+                        <p className="font-medium">{key.name}</p>
+                        <div className="flex items-center gap-2 text-sm text-muted-foreground">
+                          <code className="bg-muted px-2 py-0.5 rounded">{key.keyPrefix}...</code>
+                          {key.lastUsedAt && (
+                            <span>Last used: {format(new Date(key.lastUsedAt), "MMM d, yyyy")}</span>
+                          )}
+                          {key.expiresAt && (
+                            <span className="text-yellow-600">
+                              Expires: {format(new Date(key.expiresAt), "MMM d, yyyy")}
+                            </span>
+                          )}
+                        </div>
+                      </div>
+                    </div>
+                    <Button
+                      variant="destructive"
+                      size="sm"
+                      onClick={() => revokeApiKeyMutation.mutate({ id: key.id })}
+                    >
+                      <Trash2 className="h-4 w-4" />
+                    </Button>
+                  </div>
+                ))
+              ) : (
+                <div className="text-center py-8 text-muted-foreground">
+                  <Key className="h-12 w-12 mx-auto mb-3 opacity-50" />
+                  <p>No API keys created yet</p>
+                  <p className="text-sm">Generate an API key to connect your WhatsApp bot</p>
+                </div>
+              )}
+            </div>
+
+            {/* Integration Guide */}
+            <div className="mt-6 p-4 bg-blue-50 dark:bg-blue-900/20 rounded-lg border border-blue-200 dark:border-blue-800">
+              <h3 className="font-semibold text-blue-800 dark:text-blue-300 mb-2 flex items-center gap-2">
+                <Link2 className="h-4 w-4" />
+                WhatsApp Bot Integration Guide
+              </h3>
+              <div className="text-sm text-blue-700 dark:text-blue-400 space-y-2">
+                <p>To connect your WhatsApp bot running on Railway with this dashboard:</p>
+                <ol className="list-decimal list-inside space-y-1 ml-2">
+                  <li>Generate an API key above</li>
+                  <li>Add the key to your Railway environment variables as <code className="bg-blue-100 dark:bg-blue-800 px-1 rounded">DASHBOARD_API_KEY</code></li>
+                  <li>Set the dashboard URL as <code className="bg-blue-100 dark:bg-blue-800 px-1 rounded">DASHBOARD_API_URL</code></li>
+                  <li>Send message data to <code className="bg-blue-100 dark:bg-blue-800 px-1 rounded">POST /api/messages</code> with the API key in the Authorization header</li>
+                </ol>
+                <p className="mt-2">
+                  <strong>API Endpoint:</strong> <code className="bg-blue-100 dark:bg-blue-800 px-1 rounded">Authorization: Bearer YOUR_API_KEY</code>
+                </p>
+              </div>
+            </div>
+          </NeuCard>
+
+          {/* Scheduled Reports Section */}
+          <NeuCard className="p-6 lg:col-span-2">
+            <div className="flex items-center justify-between mb-6">
+              <div className="flex items-center gap-3">
+                <div className="h-10 w-10 rounded-full bg-orange-100 dark:bg-orange-900/30 flex items-center justify-center">
+                  <Calendar className="h-5 w-5 text-orange-600 dark:text-orange-400" />
+                </div>
+                <div>
+                  <h2 className="text-lg font-bold">Scheduled Reports</h2>
+                  <p className="text-sm text-muted-foreground">Automated report delivery to stakeholders</p>
+                </div>
+              </div>
+              <Button onClick={() => setShowCreateReport(true)} className="gap-2">
+                <Plus className="h-4 w-4" />
+                Create Schedule
+              </Button>
+            </div>
+
+            <div className="space-y-3">
+              {scheduledReports && scheduledReports.length > 0 ? (
+                scheduledReports.map((report) => {
+                  const recipients = JSON.parse(report.recipients || "[]");
+                  return (
+                    <div
+                      key={report.id}
+                      className="flex items-center justify-between p-4 bg-muted/50 rounded-lg border"
+                    >
+                      <div className="flex items-center gap-4">
+                        <div className={cn(
+                          "h-10 w-10 rounded-lg flex items-center justify-center",
+                          report.reportType === "daily" && "bg-blue-100 dark:bg-blue-900/30",
+                          report.reportType === "weekly" && "bg-green-100 dark:bg-green-900/30",
+                          report.reportType === "monthly" && "bg-purple-100 dark:bg-purple-900/30"
+                        )}>
+                          <Clock className={cn(
+                            "h-5 w-5",
+                            report.reportType === "daily" && "text-blue-600 dark:text-blue-400",
+                            report.reportType === "weekly" && "text-green-600 dark:text-green-400",
+                            report.reportType === "monthly" && "text-purple-600 dark:text-purple-400"
+                          )} />
+                        </div>
+                        <div>
+                          <p className="font-medium">{report.name}</p>
+                          <div className="flex items-center gap-2 text-sm text-muted-foreground">
+                            <span className="capitalize">{report.reportType}</span>
+                            <span>•</span>
+                            <span className="uppercase">{report.format}</span>
+                            <span>•</span>
+                            <span>{recipients.length} recipient{recipients.length !== 1 ? "s" : ""}</span>
+                            {report.nextSendAt && (
+                              <>
+                                <span>•</span>
+                                <span>Next: {format(new Date(report.nextSendAt), "MMM d, h:mm a")}</span>
+                              </>
+                            )}
+                          </div>
+                        </div>
+                      </div>
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        onClick={() => deleteReportMutation.mutate({ id: report.id })}
+                      >
+                        <Trash2 className="h-4 w-4 text-muted-foreground hover:text-destructive" />
+                      </Button>
+                    </div>
+                  );
+                })
+              ) : (
+                <div className="text-center py-8 text-muted-foreground">
+                  <Calendar className="h-12 w-12 mx-auto mb-3 opacity-50" />
+                  <p>No scheduled reports configured</p>
+                  <p className="text-sm">Set up automated report delivery to stakeholders</p>
+                </div>
+              )}
+            </div>
+          </NeuCard>
+
+          {/* Email Notifications Section */}
+          <NeuCard className="p-6">
+            <div className="flex items-center gap-3 mb-6">
+              <div className="h-10 w-10 rounded-full bg-blue-100 dark:bg-blue-900/30 flex items-center justify-center">
+                <Bell className="h-5 w-5 text-blue-600 dark:text-blue-400" />
+              </div>
+              <div>
+                <h2 className="text-lg font-bold">Notifications</h2>
+                <p className="text-sm text-muted-foreground">Configure alert preferences</p>
+              </div>
+            </div>
+
+            <div className="space-y-4">
+              <div className="flex items-center justify-between p-4 bg-muted/50 rounded-lg">
+                <div className="flex items-center gap-3">
+                  <Mail className="h-5 w-5 text-muted-foreground" />
+                  <div>
+                    <p className="font-medium">Email Alerts</p>
+                    <p className="text-sm text-muted-foreground">Receive alerts via email</p>
+                  </div>
+                </div>
+                <Switch checked={emailAlerts} onCheckedChange={setEmailAlerts} />
+              </div>
+
+              <div className="flex items-center justify-between p-4 bg-muted/50 rounded-lg">
+                <div className="flex items-center gap-3">
+                  <AlertTriangle className="h-5 w-5 text-red-500" />
+                  <div>
+                    <p className="font-medium">Critical Alerts</p>
+                    <p className="text-sm text-muted-foreground">Urgent issues requiring attention</p>
+                  </div>
+                </div>
+                <Switch checked={criticalAlerts} onCheckedChange={setCriticalAlerts} />
+              </div>
+
+              <div className="flex items-center justify-between p-4 bg-muted/50 rounded-lg">
+                <div className="flex items-center gap-3">
+                  <BellRing className="h-5 w-5 text-yellow-500" />
+                  <div>
+                    <p className="font-medium">Low Satisfaction Alerts</p>
+                    <p className="text-sm text-muted-foreground">When satisfaction drops below threshold</p>
+                  </div>
+                </div>
+                <Switch checked={lowSatisfactionAlerts} onCheckedChange={setLowSatisfactionAlerts} />
+              </div>
+
+              <div className="flex items-center justify-between p-4 bg-muted/50 rounded-lg">
+                <div className="flex items-center gap-3">
+                  <Clock className="h-5 w-5 text-orange-500" />
+                  <div>
+                    <p className="font-medium">Response Time Alerts</p>
+                    <p className="text-sm text-muted-foreground">When response times increase</p>
+                  </div>
+                </div>
+                <Switch checked={responseTimeAlerts} onCheckedChange={setResponseTimeAlerts} />
+              </div>
+
+              <Button
+                variant="outline"
+                className="w-full gap-2 mt-4"
+                onClick={handleTestNotification}
+              >
+                <Send className="h-4 w-4" />
+                Send Test Notification
+              </Button>
+            </div>
+          </NeuCard>
+
+          {/* Email Recipients Section */}
+          <NeuCard className="p-6">
+            <div className="flex items-center justify-between mb-6">
+              <div className="flex items-center gap-3">
+                <div className="h-10 w-10 rounded-full bg-indigo-100 dark:bg-indigo-900/30 flex items-center justify-center">
+                  <Mail className="h-5 w-5 text-indigo-600 dark:text-indigo-400" />
+                </div>
+                <div>
+                  <h2 className="text-lg font-bold">Email Recipients</h2>
+                  <p className="text-sm text-muted-foreground">Who receives notifications</p>
+                </div>
+              </div>
+              <Button size="sm" onClick={() => setShowAddRecipient(true)} className="gap-1">
+                <Plus className="h-4 w-4" />
+                Add
+              </Button>
+            </div>
+
+            <div className="space-y-3">
+              {emailRecipients && emailRecipients.length > 0 ? (
+                emailRecipients.map((recipient) => (
+                  <div
+                    key={recipient.id}
+                    className="flex items-center justify-between p-3 bg-muted/50 rounded-lg"
+                  >
+                    <div>
+                      <p className="font-medium">{recipient.name}</p>
+                      <p className="text-sm text-muted-foreground">{recipient.email}</p>
+                    </div>
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      onClick={() => removeRecipientMutation.mutate({ id: recipient.id })}
+                    >
+                      <X className="h-4 w-4 text-muted-foreground hover:text-destructive" />
+                    </Button>
+                  </div>
+                ))
+              ) : (
+                <div className="text-center py-6 text-muted-foreground">
+                  <Mail className="h-10 w-10 mx-auto mb-2 opacity-50" />
+                  <p className="text-sm">No recipients configured</p>
+                </div>
+              )}
+            </div>
+          </NeuCard>
+
+          {/* Export Section */}
+          <NeuCard className="p-6">
+            <div className="flex items-center gap-3 mb-6">
+              <div className="h-10 w-10 rounded-full bg-green-100 dark:bg-green-900/30 flex items-center justify-center">
+                <Download className="h-5 w-5 text-green-600 dark:text-green-400" />
+              </div>
+              <div>
+                <h2 className="text-lg font-bold">Export Data</h2>
+                <p className="text-sm text-muted-foreground">Download analytics reports</p>
+              </div>
+            </div>
+
+            <div className="grid grid-cols-2 gap-3">
+              <Button
+                variant="outline"
+                className="gap-2 h-12"
+                onClick={() => handleExport("csv")}
+              >
+                <FileText className="h-4 w-4" />
+                CSV
+              </Button>
+              <Button
+                variant="outline"
+                className="gap-2 h-12"
+                onClick={() => handleExport("excel")}
+              >
+                <FileSpreadsheet className="h-4 w-4" />
+                Excel
+              </Button>
+              <Button
+                variant="outline"
+                className="gap-2 h-12"
+                onClick={() => handleExport("pdf")}
+              >
+                <FileText className="h-4 w-4" />
+                PDF
+              </Button>
+              <Button
+                variant="outline"
+                className="gap-2 h-12"
+                onClick={() => handleExport("word")}
+              >
+                <FileText className="h-4 w-4" />
+                Word
+              </Button>
+            </div>
+          </NeuCard>
+
+          {/* Data Management Section */}
+          <NeuCard className="p-6">
+            <div className="flex items-center gap-3 mb-6">
+              <div className="h-10 w-10 rounded-full bg-red-100 dark:bg-red-900/30 flex items-center justify-center">
+                <Database className="h-5 w-5 text-red-600 dark:text-red-400" />
+              </div>
+              <div>
+                <h2 className="text-lg font-bold">Data Management</h2>
+                <p className="text-sm text-muted-foreground">Manage your data and privacy</p>
+              </div>
+            </div>
+
+            <div className="space-y-4">
+              <div className="p-4 bg-red-50 dark:bg-red-900/20 rounded-lg border border-red-200 dark:border-red-800">
+                <p className="text-sm text-red-700 dark:text-red-400 mb-3">
+                  <strong>Warning:</strong> Deleting your data is permanent and cannot be undone.
+                </p>
+                <Button
+                  variant="destructive"
+                  className="w-full gap-2"
+                  onClick={() => setShowDeleteConfirm(true)}
+                >
+                  <Trash2 className="h-4 w-4" />
+                  Request Data Deletion
+                </Button>
+              </div>
+            </div>
+          </NeuCard>
+        </div>
+      </div>
+
+      {/* Create API Key Dialog */}
+      <Dialog open={showCreateApiKey} onOpenChange={setShowCreateApiKey}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Generate API Key</DialogTitle>
+            <DialogDescription>
+              Create an API key to connect your WhatsApp bot or other external services.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-4 py-4">
+            <div className="space-y-2">
+              <Label htmlFor="keyName">Key Name</Label>
+              <Input
+                id="keyName"
+                placeholder="e.g., WhatsApp Bot Production"
+                value={newKeyName}
+                onChange={(e) => setNewKeyName(e.target.value)}
+              />
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="keyExpiry">Expiration</Label>
+              <Select value={newKeyExpiry} onValueChange={setNewKeyExpiry}>
+                <SelectTrigger>
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="30">30 days</SelectItem>
+                  <SelectItem value="90">90 days</SelectItem>
+                  <SelectItem value="180">180 days</SelectItem>
+                  <SelectItem value="365">1 year</SelectItem>
+                  <SelectItem value="0">Never expires</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setShowCreateApiKey(false)}>
+              Cancel
+            </Button>
+            <Button onClick={handleCreateApiKey} disabled={createApiKeyMutation.isPending}>
+              {createApiKeyMutation.isPending ? (
+                <RefreshCw className="h-4 w-4 animate-spin mr-2" />
+              ) : (
+                <Key className="h-4 w-4 mr-2" />
+              )}
+              Generate Key
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Show New API Key Dialog */}
+      <Dialog open={showNewApiKey} onOpenChange={setShowNewApiKey}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2 text-green-600">
+              <Check className="h-5 w-5" />
+              API Key Generated
+            </DialogTitle>
+            <DialogDescription>
+              Copy this key now. You won't be able to see it again!
+            </DialogDescription>
+          </DialogHeader>
+          <div className="py-4">
+            <div className="relative">
+              <div className="flex items-center gap-2 p-4 bg-muted rounded-lg font-mono text-sm break-all">
+                {showGeneratedKey ? generatedKey : "•".repeat(40)}
+              </div>
+              <div className="absolute right-2 top-1/2 -translate-y-1/2 flex gap-1">
                 <Button
                   variant="ghost"
                   size="sm"
-                  onClick={() => handleRemoveRecipient(recipient.id)}
-                  className="h-8 w-8 p-0 text-muted-foreground hover:text-destructive"
+                  onClick={() => setShowGeneratedKey(!showGeneratedKey)}
                 >
-                  <X className="h-4 w-4" />
+                  {showGeneratedKey ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+                </Button>
+                <Button variant="ghost" size="sm" onClick={handleCopyApiKey}>
+                  <Copy className="h-4 w-4" />
                 </Button>
               </div>
-            ))}
+            </div>
+            <p className="text-sm text-muted-foreground mt-3">
+              Store this key securely. Add it to your Railway environment as <code className="bg-muted px-1 rounded">DASHBOARD_API_KEY</code>.
+            </p>
           </div>
+          <DialogFooter>
+            <Button onClick={() => setShowNewApiKey(false)}>
+              Done
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
 
-          {recipients.length === 0 && (
-            <div className="text-center py-6 text-muted-foreground">
-              <Mail className="h-8 w-8 mx-auto mb-2 opacity-30" />
-              <p className="text-sm">No recipients configured</p>
-            </div>
-          )}
-        </NeuCard>
-
-        {/* Appearance */}
-        <NeuCard>
-          <div className="flex items-center gap-3 mb-6">
-            <div className="p-2 bg-accent/10 rounded-lg">
-              <Palette className="h-5 w-5 text-accent" />
-            </div>
-            <div>
-              <h3 className="font-semibold text-foreground">Appearance</h3>
-              <p className="text-sm text-muted-foreground">Customize the look and feel</p>
-            </div>
-          </div>
-
-          <div className="space-y-4">
-            <div className="flex items-center justify-between gap-4">
-              <div className="flex-1 min-w-0">
-                <p className="font-medium text-foreground text-sm sm:text-base flex items-center gap-2">
-                  {theme === "dark" ? <Moon className="h-4 w-4" /> : <Sun className="h-4 w-4" />}
-                  Dark Mode
-                </p>
-                <p className="text-xs sm:text-sm text-muted-foreground">Use dark theme</p>
-              </div>
-              <Switch checked={theme === "dark"} onCheckedChange={handleThemeToggle} />
-            </div>
-            <div className="flex items-center justify-between gap-4">
-              <div className="flex-1 min-w-0">
-                <p className="font-medium text-foreground text-sm sm:text-base">Compact View</p>
-                <p className="text-xs sm:text-sm text-muted-foreground">Show more data in less space</p>
-              </div>
-              <Switch 
-                checked={compactView} 
-                onCheckedChange={(checked) => {
-                  setCompactView(checked);
-                  localStorage.setItem("compact-view", String(checked));
-                }} 
+      {/* Create Scheduled Report Dialog */}
+      <Dialog open={showCreateReport} onOpenChange={setShowCreateReport}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Create Scheduled Report</DialogTitle>
+            <DialogDescription>
+              Set up automated report delivery to stakeholders.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-4 py-4">
+            <div className="space-y-2">
+              <Label htmlFor="reportName">Report Name</Label>
+              <Input
+                id="reportName"
+                placeholder="e.g., Weekly Executive Summary"
+                value={newReportName}
+                onChange={(e) => setNewReportName(e.target.value)}
               />
             </div>
-            <div className="flex items-center justify-between gap-4">
-              <div className="flex-1 min-w-0">
-                <p className="font-medium text-foreground text-sm sm:text-base">Animations</p>
-                <p className="text-xs sm:text-sm text-muted-foreground">Enable UI animations</p>
+            <div className="grid grid-cols-2 gap-4">
+              <div className="space-y-2">
+                <Label>Frequency</Label>
+                <Select value={newReportType} onValueChange={(v: any) => setNewReportType(v)}>
+                  <SelectTrigger>
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="daily">Daily</SelectItem>
+                    <SelectItem value="weekly">Weekly</SelectItem>
+                    <SelectItem value="monthly">Monthly</SelectItem>
+                  </SelectContent>
+                </Select>
               </div>
-              <Switch 
-                checked={animationsEnabled} 
-                onCheckedChange={(checked) => {
-                  setAnimationsEnabled(checked);
-                  localStorage.setItem("animations-enabled", String(checked));
-                }} 
-              />
+              <div className="space-y-2">
+                <Label>Format</Label>
+                <Select value={newReportFormat} onValueChange={(v: any) => setNewReportFormat(v)}>
+                  <SelectTrigger>
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="pdf">PDF</SelectItem>
+                    <SelectItem value="excel">Excel</SelectItem>
+                    <SelectItem value="csv">CSV</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
             </div>
-            <div className="flex items-center justify-between gap-4">
-              <div className="flex-1 min-w-0">
-                <p className="font-medium text-foreground text-sm sm:text-base">High Contrast</p>
-                <p className="text-xs sm:text-sm text-muted-foreground">Improve accessibility</p>
-              </div>
-              <Switch 
-                checked={highContrast} 
-                onCheckedChange={(checked) => {
-                  setHighContrast(checked);
-                  localStorage.setItem("high-contrast", String(checked));
-                }} 
+            <div className="space-y-2">
+              <Label htmlFor="recipients">Recipients (comma-separated emails)</Label>
+              <Input
+                id="recipients"
+                placeholder="admin@university.edu, dean@university.edu"
+                value={newReportRecipients}
+                onChange={(e) => setNewReportRecipients(e.target.value)}
               />
             </div>
           </div>
-        </NeuCard>
-
-        {/* Export Options */}
-        <NeuCard>
-          <div className="flex items-center gap-3 mb-6">
-            <div className="p-2 bg-green-100 rounded-lg">
-              <Download className="h-5 w-5 text-green-600" />
-            </div>
-            <div>
-              <h3 className="font-semibold text-foreground">Export Data</h3>
-              <p className="text-sm text-muted-foreground">Download your analytics in multiple formats</p>
-            </div>
-          </div>
-
-          {/* Format Selection */}
-          <div className="mb-4">
-            <p className="text-sm font-medium text-foreground mb-2">Select Format</p>
-            <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
-              {[
-                { value: "csv", label: "CSV", icon: FileText },
-                { value: "excel", label: "Excel", icon: FileSpreadsheet },
-                { value: "pdf", label: "PDF", icon: FileText },
-                { value: "word", label: "Word", icon: FileText },
-              ].map((format) => (
-                <button
-                  key={format.value}
-                  onClick={() => setExportFormat(format.value as typeof exportFormat)}
-                  className={cn(
-                    "p-3 rounded-xl text-sm font-medium transition-all flex flex-col items-center gap-1",
-                    exportFormat === format.value
-                      ? "bg-primary text-white"
-                      : "bg-muted/30 text-muted-foreground hover:bg-muted/50"
-                  )}
-                  style={{ minHeight: "44px" }}
-                >
-                  <format.icon className="h-4 w-4" />
-                  {format.label}
-                </button>
-              ))}
-            </div>
-          </div>
-
-          <div className="space-y-2">
-            <Button
-              variant="outline"
-              className="w-full justify-start gap-2 neu-flat border-0 h-11"
-              onClick={() => handleExport(exportFormat)}
-              style={{ minHeight: "44px" }}
-            >
-              <Download className="h-4 w-4" />
-              Export Analytics ({exportFormat.toUpperCase()})
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setShowCreateReport(false)}>
+              Cancel
             </Button>
-            <Button
-              variant="outline"
-              className="w-full justify-start gap-2 neu-flat border-0 h-11"
-              onClick={() => toast.info("Feature coming soon")}
-              style={{ minHeight: "44px" }}
-            >
-              <Download className="h-4 w-4" />
-              Export Messages ({exportFormat.toUpperCase()})
+            <Button onClick={handleCreateReport} disabled={createReportMutation.isPending}>
+              Create Schedule
             </Button>
-            <Button
-              variant="outline"
-              className="w-full justify-start gap-2 neu-flat border-0 h-11"
-              onClick={() => toast.info("Feature coming soon")}
-              style={{ minHeight: "44px" }}
-            >
-              <Download className="h-4 w-4" />
-              Export Students ({exportFormat.toUpperCase()})
-            </Button>
-          </div>
-        </NeuCard>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
 
-        {/* Data & Privacy */}
-        <NeuCard>
-          <div className="flex items-center gap-3 mb-6">
-            <div className="p-2 bg-purple-100 rounded-lg">
-              <Shield className="h-5 w-5 text-purple-600" />
+      {/* Add Recipient Dialog */}
+      <Dialog open={showAddRecipient} onOpenChange={setShowAddRecipient}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Add Email Recipient</DialogTitle>
+            <DialogDescription>
+              Add a new recipient to receive notification emails.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-4 py-4">
+            <div className="space-y-2">
+              <Label htmlFor="recipientName">Name</Label>
+              <Input
+                id="recipientName"
+                placeholder="e.g., Support Team"
+                value={newRecipientName}
+                onChange={(e) => setNewRecipientName(e.target.value)}
+              />
             </div>
-            <div>
-              <h3 className="font-semibold text-foreground">Data & Privacy</h3>
-              <p className="text-sm text-muted-foreground">Control your data settings</p>
-            </div>
-          </div>
-
-          <div className="space-y-4">
-            <div className="flex items-center justify-between gap-4">
-              <div className="flex-1 min-w-0">
-                <p className="font-medium text-foreground text-sm sm:text-base">Data Retention (90 days)</p>
-                <p className="text-xs sm:text-sm text-muted-foreground">Automatically delete old data</p>
-              </div>
-              <Switch defaultChecked />
-            </div>
-            <div className="flex items-center justify-between gap-4">
-              <div className="flex-1 min-w-0">
-                <p className="font-medium text-foreground text-sm sm:text-base">Anonymous Analytics</p>
-                <p className="text-xs sm:text-sm text-muted-foreground">Share anonymous usage data</p>
-              </div>
-              <Switch />
-            </div>
-            <div className="flex items-center justify-between gap-4">
-              <div className="flex-1 min-w-0">
-                <p className="font-medium text-foreground text-sm sm:text-base">GDPR Compliance Mode</p>
-                <p className="text-xs sm:text-sm text-muted-foreground">Enhanced privacy protections</p>
-              </div>
-              <Switch defaultChecked />
-            </div>
-          </div>
-
-          <div className="mt-6 pt-4 border-t border-border">
-            <Button
-              variant="outline"
-              onClick={() => setShowDeleteConfirm(true)}
-              className="w-full justify-start gap-2 text-destructive hover:text-destructive hover:bg-destructive/10 h-11"
-              style={{ minHeight: "44px" }}
-            >
-              <Trash2 className="h-4 w-4" />
-              Request Data Deletion
-            </Button>
-          </div>
-        </NeuCard>
-
-        {/* API Integration */}
-        <NeuCard className="lg:col-span-2">
-          <div className="flex items-center gap-3 mb-6">
-            <div className="p-2 bg-orange-100 rounded-lg">
-              <Globe className="h-5 w-5 text-orange-600" />
-            </div>
-            <div>
-              <h3 className="font-semibold text-foreground">API Integration</h3>
-              <p className="text-sm text-muted-foreground">Connect your chatbot to external services</p>
-            </div>
-          </div>
-
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            <div className="p-4 bg-muted/30 rounded-xl">
-              <div className="flex items-center gap-2 mb-2">
-                <Lock className="h-4 w-4 text-muted-foreground" />
-                <p className="font-medium text-foreground text-sm sm:text-base">API Key</p>
-              </div>
-              <p className="text-sm text-muted-foreground font-mono bg-muted/50 p-2 rounded break-all">
-                ••••••••••••••••••••
-              </p>
-              <Button
-                variant="link"
-                className="p-0 h-auto mt-2 text-primary"
-                onClick={() => toast.info("Feature coming soon")}
-              >
-                Regenerate Key
-              </Button>
-            </div>
-            <div className="p-4 bg-muted/30 rounded-xl">
-              <div className="flex items-center gap-2 mb-2">
-                <Mail className="h-4 w-4 text-muted-foreground" />
-                <p className="font-medium text-foreground text-sm sm:text-base">Webhook URL</p>
-              </div>
-              <input
-                type="text"
-                placeholder="https://your-webhook-url.com"
-                className="w-full text-sm bg-muted/50 p-2 rounded border-0 focus:outline-none focus:ring-2 focus:ring-primary/20"
-                style={{ minHeight: "40px" }}
+            <div className="space-y-2">
+              <Label htmlFor="recipientEmail">Email</Label>
+              <Input
+                id="recipientEmail"
+                type="email"
+                placeholder="support@university.edu"
+                value={newRecipientEmail}
+                onChange={(e) => setNewRecipientEmail(e.target.value)}
               />
             </div>
           </div>
-
-          <div className="mt-4 p-4 bg-muted/20 rounded-xl">
-            <div className="flex items-center gap-2 mb-2">
-              <Database className="h-4 w-4 text-muted-foreground" />
-              <p className="font-medium text-foreground text-sm sm:text-base">Database Connection</p>
-            </div>
-            <div className="flex items-center gap-2">
-              <div className="h-2 w-2 rounded-full bg-green-500" />
-              <p className="text-sm text-muted-foreground">Connected • Last sync: 2 minutes ago</p>
-            </div>
-          </div>
-        </NeuCard>
-      </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setShowAddRecipient(false)}>
+              Cancel
+            </Button>
+            <Button onClick={handleAddRecipient} disabled={addRecipientMutation.isPending}>
+              Add Recipient
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
 
       {/* Logout Confirmation Dialog */}
       <Dialog open={showLogoutConfirm} onOpenChange={setShowLogoutConfirm}>
         <DialogContent>
           <DialogHeader>
-            <DialogTitle className="flex items-center gap-2">
-              <LogOut className="h-5 w-5 text-destructive" />
-              Confirm Logout
-            </DialogTitle>
+            <DialogTitle>Confirm Logout</DialogTitle>
             <DialogDescription>
-              Are you sure you want to log out? You will need to sign in again to access the dashboard.
+              Are you sure you want to log out? You'll need to sign in again to access the dashboard.
             </DialogDescription>
           </DialogHeader>
-          <DialogFooter className="flex gap-2 sm:gap-0">
+          <DialogFooter>
             <Button variant="outline" onClick={() => setShowLogoutConfirm(false)}>
               Cancel
             </Button>
-            <Button
-              variant="destructive"
-              onClick={handleLogout}
-              disabled={loading}
-              className="gap-2"
-            >
-              <LogOut className="h-4 w-4" />
+            <Button variant="destructive" onClick={handleLogout}>
               Logout
             </Button>
           </DialogFooter>
@@ -699,69 +1052,17 @@ export default function Settings() {
       <Dialog open={showDeleteConfirm} onOpenChange={setShowDeleteConfirm}>
         <DialogContent>
           <DialogHeader>
-            <DialogTitle className="flex items-center gap-2">
-              <AlertTriangle className="h-5 w-5 text-destructive" />
-              Request Data Deletion
-            </DialogTitle>
+            <DialogTitle className="text-destructive">Delete All Data</DialogTitle>
             <DialogDescription>
-              This will submit a request to permanently delete all your analytics data. This action cannot be undone and may take up to 24 hours to complete.
+              This action cannot be undone. All your analytics data, student records, and message history will be permanently deleted.
             </DialogDescription>
           </DialogHeader>
-          <DialogFooter className="flex gap-2 sm:gap-0">
+          <DialogFooter>
             <Button variant="outline" onClick={() => setShowDeleteConfirm(false)}>
               Cancel
             </Button>
-            <Button variant="destructive" onClick={handleDeleteData} className="gap-2">
-              <Trash2 className="h-4 w-4" />
+            <Button variant="destructive" onClick={handleDeleteData}>
               Delete All Data
-            </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
-
-      {/* Add Recipient Dialog */}
-      <Dialog open={showAddRecipient} onOpenChange={setShowAddRecipient}>
-        <DialogContent>
-          <DialogHeader>
-            <DialogTitle className="flex items-center gap-2">
-              <Mail className="h-5 w-5 text-primary" />
-              Add Email Recipient
-            </DialogTitle>
-            <DialogDescription>
-              Add a new recipient for notification emails
-            </DialogDescription>
-          </DialogHeader>
-          
-          <div className="space-y-4 py-4">
-            <div>
-              <label className="text-sm font-medium text-foreground">Name</label>
-              <input
-                type="text"
-                value={newRecipientName}
-                onChange={(e) => setNewRecipientName(e.target.value)}
-                placeholder="e.g., Support Team"
-                className="w-full mt-1 p-2 rounded-lg border border-border bg-background focus:outline-none focus:ring-2 focus:ring-primary/20"
-              />
-            </div>
-            <div>
-              <label className="text-sm font-medium text-foreground">Email</label>
-              <input
-                type="email"
-                value={newRecipientEmail}
-                onChange={(e) => setNewRecipientEmail(e.target.value)}
-                placeholder="e.g., support@university.edu"
-                className="w-full mt-1 p-2 rounded-lg border border-border bg-background focus:outline-none focus:ring-2 focus:ring-primary/20"
-              />
-            </div>
-          </div>
-
-          <DialogFooter>
-            <Button variant="outline" onClick={() => setShowAddRecipient(false)}>
-              Cancel
-            </Button>
-            <Button onClick={handleAddRecipient} className="gap-2">
-              <Check className="h-4 w-4" />
-              Add Recipient
             </Button>
           </DialogFooter>
         </DialogContent>

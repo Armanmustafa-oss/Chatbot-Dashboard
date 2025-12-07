@@ -125,3 +125,78 @@ export const notifications = mysqlTable("notifications", {
 
 export type Notification = typeof notifications.$inferSelect;
 export type InsertNotification = typeof notifications.$inferInsert;
+
+
+/**
+ * Email recipients table - stores email addresses for notification delivery
+ */
+export const emailRecipients = mysqlTable("emailRecipients", {
+  id: int("id").autoincrement().primaryKey(),
+  email: varchar("email", { length: 320 }).notNull(),
+  name: varchar("name", { length: 255 }),
+  notifyOnCritical: boolean("notifyOnCritical").default(true).notNull(),
+  notifyOnWarning: boolean("notifyOnWarning").default(true).notNull(),
+  notifyOnInfo: boolean("notifyOnInfo").default(false).notNull(),
+  isActive: boolean("isActive").default(true).notNull(),
+  createdAt: timestamp("createdAt").defaultNow().notNull(),
+  updatedAt: timestamp("updatedAt").defaultNow().onUpdateNow().notNull(),
+});
+
+export type EmailRecipient = typeof emailRecipients.$inferSelect;
+export type InsertEmailRecipient = typeof emailRecipients.$inferInsert;
+
+/**
+ * API keys table - stores API keys for external integrations (e.g., WhatsApp bot)
+ */
+export const apiKeys = mysqlTable("apiKeys", {
+  id: int("id").autoincrement().primaryKey(),
+  name: varchar("name", { length: 128 }).notNull(),
+  keyHash: varchar("keyHash", { length: 64 }).notNull().unique(), // SHA-256 hash of the key
+  keyPrefix: varchar("keyPrefix", { length: 8 }).notNull(), // First 8 chars for identification
+  permissions: text("permissions"), // JSON array of permissions
+  lastUsedAt: timestamp("lastUsedAt"),
+  expiresAt: timestamp("expiresAt"),
+  isActive: boolean("isActive").default(true).notNull(),
+  createdAt: timestamp("createdAt").defaultNow().notNull(),
+  createdBy: int("createdBy"), // User ID who created the key
+});
+
+export type ApiKey = typeof apiKeys.$inferSelect;
+export type InsertApiKey = typeof apiKeys.$inferInsert;
+
+/**
+ * Scheduled reports table - stores configuration for automated report delivery
+ */
+export const scheduledReports = mysqlTable("scheduledReports", {
+  id: int("id").autoincrement().primaryKey(),
+  name: varchar("name", { length: 128 }).notNull(),
+  reportType: mysqlEnum("reportType", ["daily", "weekly", "monthly"]).default("weekly").notNull(),
+  format: mysqlEnum("format", ["pdf", "excel", "csv"]).default("pdf").notNull(),
+  recipients: text("recipients").notNull(), // JSON array of email addresses
+  includeMetrics: text("includeMetrics"), // JSON array of metrics to include
+  isActive: boolean("isActive").default(true).notNull(),
+  lastSentAt: timestamp("lastSentAt"),
+  nextSendAt: timestamp("nextSendAt"),
+  createdAt: timestamp("createdAt").defaultNow().notNull(),
+  updatedAt: timestamp("updatedAt").defaultNow().onUpdateNow().notNull(),
+});
+
+export type ScheduledReport = typeof scheduledReports.$inferSelect;
+export type InsertScheduledReport = typeof scheduledReports.$inferInsert;
+
+/**
+ * Email logs table - tracks sent emails for audit purposes
+ */
+export const emailLogs = mysqlTable("emailLogs", {
+  id: int("id").autoincrement().primaryKey(),
+  recipientEmail: varchar("recipientEmail", { length: 320 }).notNull(),
+  subject: varchar("subject", { length: 255 }).notNull(),
+  type: mysqlEnum("type", ["notification", "report", "alert"]).default("notification").notNull(),
+  status: mysqlEnum("status", ["pending", "sent", "failed"]).default("pending").notNull(),
+  errorMessage: text("errorMessage"),
+  sentAt: timestamp("sentAt"),
+  createdAt: timestamp("createdAt").defaultNow().notNull(),
+});
+
+export type EmailLog = typeof emailLogs.$inferSelect;
+export type InsertEmailLog = typeof emailLogs.$inferInsert;

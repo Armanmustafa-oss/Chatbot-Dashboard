@@ -1,0 +1,13 @@
+{
+  "query": "SELECT COUNT(*) as count FROM students;",
+  "command": "mysql --batch --raw --column-names --default-character-set=utf8mb4 --host gateway02.us-east-1.prod.aws.tidbcloud.com --port 4000 --user 3eNQGjqKLjPjVky.9f44687398e8 --database 2DkuAsPf7vUCya3sED7FTv --execute SELECT COUNT(*) as count FROM students;",
+  "rows": [
+    {
+      "count": "100"
+    }
+  ],
+  "messages": [],
+  "stdout": "count\n100\n",
+  "stderr": "",
+  "execution_time_ms": 89
+}

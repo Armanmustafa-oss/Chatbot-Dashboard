@@ -679,37 +679,71 @@ export default function Analytics() {
         </NeuCard>
       </div>
 
-      {/* Sentiment Breakdown */}
+      {/* Sentiment Breakdown - Enhanced with hover interactivity */}
       {kpiData && (
         <NeuCard className="mb-8">
           <h3 className="text-base md:text-lg font-bold text-foreground mb-4 md:mb-6">Sentiment Breakdown</h3>
+          <p className="text-xs text-muted-foreground mb-4">Click any segment to view messages with that sentiment</p>
           <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-            <div className="p-4 bg-green-50 dark:bg-green-950/30 rounded-xl text-center">
-              <p className="text-2xl md:text-3xl font-bold text-green-600">
+            {/* Positive Sentiment Card */}
+            <div 
+              onClick={() => {
+                setMessageFilter(prev => ({ ...prev, sentiment: "positive" }));
+                setSatisfactionOpen(true);
+              }}
+              className="p-4 bg-green-50 dark:bg-green-950/30 rounded-xl text-center cursor-pointer transition-all duration-300 hover:scale-105 hover:shadow-lg hover:bg-green-100 dark:hover:bg-green-900/50 hover:ring-2 hover:ring-green-400/50 group"
+            >
+              <div className="transition-transform duration-300 group-hover:scale-110">
+                <ThumbsUp className="h-6 w-6 text-green-600 mx-auto mb-2 transition-colors group-hover:text-green-500" />
+              </div>
+              <p className="text-2xl md:text-3xl font-bold text-green-600 transition-colors group-hover:text-green-500">
                 {(kpiData.positiveCount || 0).toLocaleString()}
               </p>
-              <p className="text-sm text-green-700 dark:text-green-400 mt-1">Positive</p>
+              <p className="text-sm text-green-700 dark:text-green-400 mt-1 font-medium">Positive</p>
               <p className="text-xs text-green-600 mt-1">
                 {kpiData.totalMessages ? Math.round(((kpiData.positiveCount || 0) / kpiData.totalMessages) * 100) : 0}%
               </p>
+              <p className="text-xs text-green-500 mt-2 opacity-0 group-hover:opacity-100 transition-opacity">Click to view →</p>
             </div>
-            <div className="p-4 bg-gray-50 dark:bg-gray-800/30 rounded-xl text-center">
-              <p className="text-2xl md:text-3xl font-bold text-gray-600 dark:text-gray-400">
+            {/* Neutral Sentiment Card */}
+            <div 
+              onClick={() => {
+                setMessageFilter(prev => ({ ...prev, sentiment: "neutral" }));
+                setSatisfactionOpen(true);
+              }}
+              className="p-4 bg-gray-50 dark:bg-gray-800/30 rounded-xl text-center cursor-pointer transition-all duration-300 hover:scale-105 hover:shadow-lg hover:bg-gray-100 dark:hover:bg-gray-700/50 hover:ring-2 hover:ring-gray-400/50 group"
+            >
+              <div className="transition-transform duration-300 group-hover:scale-110">
+                <Activity className="h-6 w-6 text-gray-500 mx-auto mb-2 transition-colors group-hover:text-gray-400" />
+              </div>
+              <p className="text-2xl md:text-3xl font-bold text-gray-600 dark:text-gray-400 transition-colors group-hover:text-gray-500">
                 {(kpiData.neutralCount || 0).toLocaleString()}
               </p>
-              <p className="text-sm text-gray-700 dark:text-gray-400 mt-1">Neutral</p>
+              <p className="text-sm text-gray-700 dark:text-gray-400 mt-1 font-medium">Neutral</p>
               <p className="text-xs text-gray-600 mt-1">
                 {kpiData.totalMessages ? Math.round(((kpiData.neutralCount || 0) / kpiData.totalMessages) * 100) : 0}%
               </p>
+              <p className="text-xs text-gray-500 mt-2 opacity-0 group-hover:opacity-100 transition-opacity">Click to view →</p>
             </div>
-            <div className="p-4 bg-red-50 dark:bg-red-950/30 rounded-xl text-center">
-              <p className="text-2xl md:text-3xl font-bold text-red-600">
+            {/* Negative Sentiment Card */}
+            <div 
+              onClick={() => {
+                setMessageFilter(prev => ({ ...prev, sentiment: "negative" }));
+                setSatisfactionOpen(true);
+              }}
+              className="p-4 bg-red-50 dark:bg-red-950/30 rounded-xl text-center cursor-pointer transition-all duration-300 hover:scale-105 hover:shadow-lg hover:bg-red-100 dark:hover:bg-red-900/50 hover:ring-2 hover:ring-red-400/50 group"
+            >
+              <div className="transition-transform duration-300 group-hover:scale-110">
+                <ThumbsDown className="h-6 w-6 text-red-600 mx-auto mb-2 transition-colors group-hover:text-red-500" />
+              </div>
+              <p className="text-2xl md:text-3xl font-bold text-red-600 transition-colors group-hover:text-red-500">
                 {(kpiData.negativeCount || 0).toLocaleString()}
               </p>
-              <p className="text-sm text-red-700 dark:text-red-400 mt-1">Negative</p>
+              <p className="text-sm text-red-700 dark:text-red-400 mt-1 font-medium">Negative</p>
               <p className="text-xs text-red-600 mt-1">
                 {kpiData.totalMessages ? Math.round(((kpiData.negativeCount || 0) / kpiData.totalMessages) * 100) : 0}%
               </p>
+              <p className="text-xs text-red-500 mt-2 opacity-0 group-hover:opacity-100 transition-opacity">Click to view →</p>
             </div>
           </div>
         </NeuCard>

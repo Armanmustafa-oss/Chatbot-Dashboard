@@ -9,13 +9,25 @@ import {
   hourlyPeakTimes, 
   queryCategories,
   notifications,
+  emailRecipients,
+  apiKeys,
+  scheduledReports,
+  emailLogs,
   type Message,
   type Student,
   type DailyAnalytics,
   type HourlyPeakTime,
   type QueryCategory,
   type Notification,
-  type InsertNotification
+  type InsertNotification,
+  type EmailRecipient,
+  type InsertEmailRecipient,
+  type ApiKey,
+  type InsertApiKey,
+  type ScheduledReport,
+  type InsertScheduledReport,
+  type EmailLog,
+  type InsertEmailLog
 } from "../drizzle/schema";
 import { ENV } from './_core/env';
 
@@ -729,4 +741,353 @@ export async function getNotificationHistory(limit: number = 100): Promise<Notif
     .from(notifications)
     .orderBy(desc(notifications.createdAt))
     .limit(limit);
+}
+
+
+// ============ Email Recipients Queries ============
+
+/**
+ * Get all email recipients
+ */
+export async function getEmailRecipients(): Promise<EmailRecipient[]> {
+  const db = await getDb();
+  if (!db) return [];
+
+  return await db
+    .select()
+    .from(emailRecipients)
+    .where(eq(emailRecipients.isActive, true))
+    .orderBy(desc(emailRecipients.createdAt));
+}
+
+/**
+ * Add a new email recipient
+ */
+export async function addEmailRecipient(data: InsertEmailRecipient): Promise<EmailRecipient | null> {
+  const db = await getDb();
+  if (!db) return null;
+
+  await db.insert(emailRecipients).values(data);
+  
+  const result = await db
+    .select()
+    .from(emailRecipients)
+    .where(eq(emailRecipients.email, data.email))
+    .limit(1);
+
+  return result[0] || null;
+}
+
+/**
+ * Update email recipient preferences
+ */
+export async function updateEmailRecipient(id: number, data: Partial<InsertEmailRecipient>): Promise<boolean> {
+  const db = await getDb();
+  if (!db) return false;
+
+  await db
+    .update(emailRecipients)
+    .set(data)
+    .where(eq(emailRecipients.id, id));
+
+  return true;
+}
+
+/**
+ * Remove an email recipient (soft delete)
+ */
+export async function removeEmailRecipient(id: number): Promise<boolean> {
+  const db = await getDb();
+  if (!db) return false;
+
+  await db
+    .update(emailRecipients)
+    .set({ isActive: false })
+    .where(eq(emailRecipients.id, id));
+
+  return true;
+}
+
+// ============ API Keys Queries ============
+
+/**
+ * Get all API keys (without revealing the actual key)
+ */
+export async function getApiKeys(): Promise<Array<Omit<ApiKey, 'keyHash'>>> {
+  const db = await getDb();
+  if (!db) return [];
+
+  const keys = await db
+    .select({
+      id: apiKeys.id,
+      name: apiKeys.name,
+      keyPrefix: apiKeys.keyPrefix,
+      permissions: apiKeys.permissions,
+      lastUsedAt: apiKeys.lastUsedAt,
+      expiresAt: apiKeys.expiresAt,
+      isActive: apiKeys.isActive,
+      createdAt: apiKeys.createdAt,
+      createdBy: apiKeys.createdBy,
+    })
+    .from(apiKeys)
+    .where(eq(apiKeys.isActive, true))
+    .orderBy(desc(apiKeys.createdAt));
+
+  return keys;
+}
+
+/**
+ * Create a new API key
+ * Returns the full key only once - it should be shown to the user immediately
+ */
+export async function createApiKey(data: {
+  name: string;
+  permissions?: string[];
+  expiresAt?: Date;
+  createdBy?: number;
+}): Promise<{ key: string; keyPrefix: string; id: number } | null> {
+  const db = await getDb();
+  if (!db) return null;
+
+  // Generate a random API key
+  const keyBytes = new Uint8Array(32);
+  crypto.getRandomValues(keyBytes);
+  const fullKey = 'sma_' + Array.from(keyBytes).map(b => b.toString(16).padStart(2, '0')).join('');
+  const keyPrefix = fullKey.substring(0, 12);
+  
+  // Hash the key for storage
+  const encoder = new TextEncoder();
+  const keyData = encoder.encode(fullKey);
+  const hashBuffer = await crypto.subtle.digest('SHA-256', keyData);
+  const keyHash = Array.from(new Uint8Array(hashBuffer)).map(b => b.toString(16).padStart(2, '0')).join('');
+
+  await db.insert(apiKeys).values({
+    name: data.name,
+    keyHash,
+    keyPrefix,
+    permissions: data.permissions ? JSON.stringify(data.permissions) : null,
+    expiresAt: data.expiresAt,
+    createdBy: data.createdBy,
+  });
+
+  const result = await db
+    .select({ id: apiKeys.id })
+    .from(apiKeys)
+    .where(eq(apiKeys.keyHash, keyHash))
+    .limit(1);
+
+  return {
+    key: fullKey,
+    keyPrefix,
+    id: result[0]?.id || 0,
+  };
+}
+
+/**
+ * Validate an API key
+ */
+export async function validateApiKey(key: string): Promise<ApiKey | null> {
+  const db = await getDb();
+  if (!db) return null;
+
+  // Hash the provided key
+  const encoder = new TextEncoder();
+  const keyData = encoder.encode(key);
+  const hashBuffer = await crypto.subtle.digest('SHA-256', keyData);
+  const keyHash = Array.from(new Uint8Array(hashBuffer)).map(b => b.toString(16).padStart(2, '0')).join('');
+
+  const result = await db
+    .select()
+    .from(apiKeys)
+    .where(and(
+      eq(apiKeys.keyHash, keyHash),
+      eq(apiKeys.isActive, true)
+    ))
+    .limit(1);
+
+  if (result.length === 0) return null;
+
+  const apiKey = result[0];
+
+  // Check expiration
+  if (apiKey.expiresAt && new Date(apiKey.expiresAt) < new Date()) {
+    return null;
+  }
+
+  // Update last used timestamp
+  await db
+    .update(apiKeys)
+    .set({ lastUsedAt: new Date() })
+    .where(eq(apiKeys.id, apiKey.id));
+
+  return apiKey;
+}
+
+/**
+ * Revoke an API key
+ */
+export async function revokeApiKey(id: number): Promise<boolean> {
+  const db = await getDb();
+  if (!db) return false;
+
+  await db
+    .update(apiKeys)
+    .set({ isActive: false })
+    .where(eq(apiKeys.id, id));
+
+  return true;
+}
+
+// ============ Scheduled Reports Queries ============
+
+/**
+ * Get all scheduled reports
+ */
+export async function getScheduledReports(): Promise<ScheduledReport[]> {
+  const db = await getDb();
+  if (!db) return [];
+
+  return await db
+    .select()
+    .from(scheduledReports)
+    .where(eq(scheduledReports.isActive, true))
+    .orderBy(desc(scheduledReports.createdAt));
+}
+
+/**
+ * Create a new scheduled report
+ */
+export async function createScheduledReport(data: InsertScheduledReport): Promise<ScheduledReport | null> {
+  const db = await getDb();
+  if (!db) return null;
+
+  await db.insert(scheduledReports).values(data);
+
+  const result = await db
+    .select()
+    .from(scheduledReports)
+    .where(eq(scheduledReports.name, data.name))
+    .orderBy(desc(scheduledReports.createdAt))
+    .limit(1);
+
+  return result[0] || null;
+}
+
+/**
+ * Update a scheduled report
+ */
+export async function updateScheduledReport(id: number, data: Partial<InsertScheduledReport>): Promise<boolean> {
+  const db = await getDb();
+  if (!db) return false;
+
+  await db
+    .update(scheduledReports)
+    .set(data)
+    .where(eq(scheduledReports.id, id));
+
+  return true;
+}
+
+/**
+ * Delete a scheduled report (soft delete)
+ */
+export async function deleteScheduledReport(id: number): Promise<boolean> {
+  const db = await getDb();
+  if (!db) return false;
+
+  await db
+    .update(scheduledReports)
+    .set({ isActive: false })
+    .where(eq(scheduledReports.id, id));
+
+  return true;
+}
+
+/**
+ * Get reports due for sending
+ */
+export async function getReportsDueForSending(): Promise<ScheduledReport[]> {
+  const db = await getDb();
+  if (!db) return [];
+
+  const now = new Date();
+
+  return await db
+    .select()
+    .from(scheduledReports)
+    .where(and(
+      eq(scheduledReports.isActive, true),
+      lte(scheduledReports.nextSendAt, now)
+    ));
+}
+
+/**
+ * Update report after sending
+ */
+export async function markReportAsSent(id: number, nextSendAt: Date): Promise<boolean> {
+  const db = await getDb();
+  if (!db) return false;
+
+  await db
+    .update(scheduledReports)
+    .set({ 
+      lastSentAt: new Date(),
+      nextSendAt
+    })
+    .where(eq(scheduledReports.id, id));
+
+  return true;
+}
+
+// ============ Email Logs Queries ============
+
+/**
+ * Log an email send attempt
+ */
+export async function logEmailSend(data: InsertEmailLog): Promise<EmailLog | null> {
+  const db = await getDb();
+  if (!db) return null;
+
+  await db.insert(emailLogs).values(data);
+
+  const result = await db
+    .select()
+    .from(emailLogs)
+    .orderBy(desc(emailLogs.createdAt))
+    .limit(1);
+
+  return result[0] || null;
+}
+
+/**
+ * Get email logs
+ */
+export async function getEmailLogs(limit: number = 100): Promise<EmailLog[]> {
+  const db = await getDb();
+  if (!db) return [];
+
+  return await db
+    .select()
+    .from(emailLogs)
+    .orderBy(desc(emailLogs.createdAt))
+    .limit(limit);
+}
+
+/**
+ * Update email log status
+ */
+export async function updateEmailLogStatus(id: number, status: 'sent' | 'failed', errorMessage?: string): Promise<boolean> {
+  const db = await getDb();
+  if (!db) return false;
+
+  await db
+    .update(emailLogs)
+    .set({ 
+      status,
+      errorMessage,
+      sentAt: status === 'sent' ? new Date() : undefined
+    })
+    .where(eq(emailLogs.id, id));
+
+  return true;
 }

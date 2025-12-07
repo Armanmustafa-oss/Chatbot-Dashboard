@@ -16,9 +16,10 @@ import {
   ThumbsUp,
   TrendingUp,
   ChevronRight,
-  Info,
+  AlertCircle,
+  RefreshCw,
 } from "lucide-react";
-import { useMemo, useState } from "react";
+import { useMemo, useState, useCallback } from "react";
 import {
   Area,
   AreaChart,
@@ -35,9 +36,51 @@ import {
   YAxis,
 } from "recharts";
 import { useLocation } from "wouter";
+import { useTheme } from "@/contexts/ThemeContext";
+
+// Chart Error Boundary Component
+function ChartErrorFallback({ 
+  title, 
+  onRetry, 
+  isRetrying 
+}: { 
+  title: string; 
+  onRetry: () => void; 
+  isRetrying: boolean;
+}) {
+  return (
+    <div className="h-full flex flex-col items-center justify-center text-muted-foreground gap-3 p-4">
+      <AlertCircle className="h-8 w-8 text-destructive/60" />
+      <p className="text-sm text-center">Unable to load {title}</p>
+      <Button 
+        variant="outline" 
+        size="sm" 
+        onClick={onRetry}
+        disabled={isRetrying}
+        className="gap-2"
+      >
+        <RefreshCw className={`h-4 w-4 ${isRetrying ? 'animate-spin' : ''}`} />
+        {isRetrying ? 'Retrying...' : 'Retry'}
+      </Button>
+    </div>
+  );
+}
+
+// Loading Skeleton for Charts
+function ChartLoadingSkeleton() {
+  return (
+    <div className="h-full flex flex-col items-center justify-center gap-3">
+      <div className="w-8 h-8 border-2 border-primary border-t-transparent rounded-full animate-spin" />
+      <p className="text-sm text-muted-foreground">Loading chart data...</p>
+    </div>
+  );
+}
 
 export default function Home() {
   const [, navigate] = useLocation();
+  const { theme } = useTheme();
+  const isDark = theme === "dark";
+  
   const [dateRange, setDateRange] = useState<DateRange>({
     from: new Date(Date.now() - 30 * 24 * 60 * 60 * 1000),
     to: new Date(),
@@ -50,18 +93,36 @@ export default function Home() {
   const [isTopQueriesModalOpen, setIsTopQueriesModalOpen] = useState(false);
   const [selectedQueryCategory, setSelectedQueryCategory] = useState<string | null>(null);
 
-  // Fetch real data from database
-  const { data: dailyData, isLoading: isLoadingDaily } = trpc.analytics.getDailyData.useQuery({
+  // Fetch real data from database with refetch capability
+  const { 
+    data: dailyData, 
+    isLoading: isLoadingDaily, 
+    isError: isErrorDaily,
+    refetch: refetchDaily,
+    isRefetching: isRefetchingDaily
+  } = trpc.analytics.getDailyData.useQuery({
     startDate: dateRange.from,
     endDate: dateRange.to,
   });
 
-  const { data: hourlyData, isLoading: isLoadingHourly } = trpc.analytics.getHourlyPeakTimes.useQuery({
+  const { 
+    data: hourlyData, 
+    isLoading: isLoadingHourly,
+    isError: isErrorHourly,
+    refetch: refetchHourly,
+    isRefetching: isRefetchingHourly
+  } = trpc.analytics.getHourlyPeakTimes.useQuery({
     startDate: dateRange.from,
     endDate: dateRange.to,
   });
 
-  const { data: kpiData, isLoading: isLoadingKPI } = trpc.analytics.getKPISummary.useQuery({
+  const { 
+    data: kpiData, 
+    isLoading: isLoadingKPI,
+    isError: isErrorKPI,
+    refetch: refetchKPI,
+    isRefetching: isRefetchingKPI
+  } = trpc.analytics.getKPISummary.useQuery({
     startDate: dateRange.from,
     endDate: dateRange.to,
   });
@@ -69,17 +130,30 @@ export default function Home() {
   const { data: topQueries } = trpc.analytics.getTopQueries.useQuery({ limit: 5 });
   const { data: allQueries } = trpc.analytics.getTopQueries.useQuery({ limit: 50 });
 
-  // Format data for charts
+  // Theme-aware chart colors
+  const chartColors = useMemo(() => ({
+    primary: isDark ? "#60a5fa" : "#3b82f6",
+    primaryLight: isDark ? "rgba(96, 165, 250, 0.3)" : "rgba(59, 130, 246, 0.3)",
+    grid: isDark ? "rgba(255, 255, 255, 0.1)" : "rgba(0, 0, 0, 0.1)",
+    text: isDark ? "#a1a1aa" : "#71717a",
+    tooltipBg: isDark ? "#27272a" : "#ffffff",
+    tooltipShadow: isDark ? "0 4px 12px rgba(0,0,0,0.5)" : "5px 5px 10px #d1d9e6",
+    positive: "#22c55e",
+    neutral: isDark ? "#6b7280" : "#94a3b8",
+    negative: "#ef4444",
+  }), [isDark]);
+
+  // Format data for charts with validation
   const formattedDailyData = useMemo(() => {
-    if (!dailyData) return [];
+    if (!dailyData || !Array.isArray(dailyData) || dailyData.length === 0) return [];
     return dailyData.map((d) => ({
       date: format(new Date(d.date), "MMM d"),
-      messages: d.totalMessages,
+      messages: Number(d.totalMessages) || 0,
     }));
   }, [dailyData]);
 
   const formattedHourlyData = useMemo(() => {
-    if (!hourlyData) return [];
+    if (!hourlyData || !Array.isArray(hourlyData) || hourlyData.length === 0) return [];
     return hourlyData.map((h) => ({
       hour: `${h.hour}:00`,
       hourNum: h.hour,
@@ -92,11 +166,11 @@ export default function Home() {
     const total = (kpiData.positiveCount || 0) + (kpiData.neutralCount || 0) + (kpiData.negativeCount || 0);
     if (total === 0) return [];
     return [
-      { name: "Positive", value: kpiData.positiveCount || 0, fill: "#22c55e" },
-      { name: "Neutral", value: kpiData.neutralCount || 0, fill: "#94a3b8" },
-      { name: "Negative", value: kpiData.negativeCount || 0, fill: "#ef4444" },
+      { name: "Positive", value: kpiData.positiveCount || 0, fill: chartColors.positive },
+      { name: "Neutral", value: kpiData.neutralCount || 0, fill: chartColors.neutral },
+      { name: "Negative", value: kpiData.negativeCount || 0, fill: chartColors.negative },
     ];
-  }, [kpiData]);
+  }, [kpiData, chartColors]);
 
   const positivePercentage = useMemo(() => {
     if (!kpiData || !kpiData.totalMessages) return 0;
@@ -173,6 +247,19 @@ export default function Home() {
     if (hour < 12) return `${hour} AM`;
     return `${hour - 12} PM`;
   };
+
+  // Retry handlers
+  const handleRetryDaily = useCallback(() => {
+    refetchDaily();
+  }, [refetchDaily]);
+
+  const handleRetryHourly = useCallback(() => {
+    refetchHourly();
+  }, [refetchHourly]);
+
+  const handleRetryKPI = useCallback(() => {
+    refetchKPI();
+  }, [refetchKPI]);
 
   return (
     <DashboardLayout>
@@ -274,24 +361,20 @@ export default function Home() {
               title: "Cost Savings Calculation",
               description: "How we calculate the estimated cost savings from automation",
               breakdown: [
-                { label: "Queries Automated", value: costSavingsData.totalMessages.toLocaleString(), description: "Total messages handled by bot" },
-                { label: "Minutes Saved", value: costSavingsData.minutesSaved.toLocaleString(), description: `${costSavingsData.avgMinutesPerQuery} min × ${costSavingsData.totalMessages} queries` },
-                { label: "Hours Saved", value: costSavingsData.hoursSaved, description: "Total staff hours saved" },
-                { label: "Cost Saved", value: `$${costSavingsData.costSaved.toLocaleString()}`, description: `${costSavingsData.hoursSaved} hrs × $${costSavingsData.hourlyRate}/hr` },
+                { label: "Total Messages", value: costSavingsData.totalMessages.toLocaleString(), description: "Queries handled by bot" },
+                { label: "Avg Time Saved/Query", value: `${costSavingsData.avgMinutesPerQuery} min`, description: "Estimated human handling time" },
+                { label: "Staff Hourly Rate", value: `$${costSavingsData.hourlyRate}`, description: "Average staff cost per hour" },
+                { label: "Hours Saved", value: `${costSavingsData.hoursSaved} hrs`, description: "Total staff hours saved" },
               ],
-              formula: "Cost Saved = (Queries × Avg Minutes) ÷ 60 × Hourly Rate",
-              assumptions: [
-                { label: "Avg Time per Query", value: `${costSavingsData.avgMinutesPerQuery} minutes` },
-                { label: "Staff Hourly Rate", value: `$${costSavingsData.hourlyRate}/hour` },
-              ],
+              formula: "Cost Saved = (Messages × Avg Time) ÷ 60 × Hourly Rate",
             }}
           />
         </div>
       </div>
 
-      {/* Main Charts Section - Responsive */}
+      {/* Primary Charts Row - Responsive */}
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-4 sm:gap-8">
-        {/* Message Volume Trend (Large Area Chart) */}
+        {/* Message Volume Trend (Area Chart) - Fixed with error boundary */}
         <div className="lg:col-span-2 relative">
           <MetricCheckbox
             id="messageVolumeTrend"
@@ -311,45 +394,55 @@ export default function Home() {
             </div>
             <div className="flex-1 w-full min-h-[200px] sm:min-h-[300px]">
               {isLoadingDaily ? (
-                <div className="h-full flex items-center justify-center text-muted-foreground">
-                  Loading...
+                <ChartLoadingSkeleton />
+              ) : isErrorDaily ? (
+                <ChartErrorFallback 
+                  title="Message Volume Trend" 
+                  onRetry={handleRetryDaily}
+                  isRetrying={isRefetchingDaily}
+                />
+              ) : formattedDailyData.length === 0 ? (
+                <div className="h-full flex flex-col items-center justify-center text-muted-foreground gap-2">
+                  <Activity className="h-8 w-8 opacity-50" />
+                  <p className="text-sm">No data available for selected period</p>
                 </div>
               ) : (
                 <ResponsiveContainer width="100%" height="100%">
                   <AreaChart data={formattedDailyData}>
                     <defs>
                       <linearGradient id="colorMessages" x1="0" y1="0" x2="0" y2="1">
-                        <stop offset="5%" stopColor="var(--color-primary)" stopOpacity={0.3} />
-                        <stop offset="95%" stopColor="var(--color-primary)" stopOpacity={0} />
+                        <stop offset="5%" stopColor={chartColors.primary} stopOpacity={0.3} />
+                        <stop offset="95%" stopColor={chartColors.primary} stopOpacity={0} />
                       </linearGradient>
                     </defs>
-                    <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="var(--color-border)" />
+                    <CartesianGrid strokeDasharray="3 3" vertical={false} stroke={chartColors.grid} />
                     <XAxis
                       dataKey="date"
                       axisLine={false}
                       tickLine={false}
-                      tick={{ fill: "var(--color-muted-foreground)", fontSize: 10 }}
+                      tick={{ fill: chartColors.text, fontSize: 10 }}
                       dy={10}
                       interval="preserveStartEnd"
                     />
                     <YAxis
                       axisLine={false}
                       tickLine={false}
-                      tick={{ fill: "var(--color-muted-foreground)", fontSize: 10 }}
+                      tick={{ fill: chartColors.text, fontSize: 10 }}
                       width={40}
                     />
                     <Tooltip
                       contentStyle={{
-                        backgroundColor: "var(--color-card)",
+                        backgroundColor: chartColors.tooltipBg,
                         borderRadius: "12px",
                         border: "none",
-                        boxShadow: "5px 5px 10px #d1d9e6",
+                        boxShadow: chartColors.tooltipShadow,
+                        color: isDark ? "#fff" : "#000",
                       }}
                     />
                     <Area
                       type="monotone"
                       dataKey="messages"
-                      stroke="var(--color-primary)"
+                      stroke={chartColors.primary}
                       strokeWidth={2}
                       fillOpacity={1}
                       fill="url(#colorMessages)"
@@ -361,7 +454,7 @@ export default function Home() {
           </NeuCard>
         </div>
 
-        {/* Sentiment Analysis (Pie Chart) - Fixed to show all 3 categories */}
+        {/* Sentiment Analysis (Pie Chart) - Fixed with error boundary and hover effects */}
         <div className="relative">
           <MetricCheckbox
             id="sentimentAnalysis"
@@ -378,8 +471,17 @@ export default function Home() {
             </div>
             <div className="flex-1 w-full min-h-[200px] relative">
               {isLoadingKPI ? (
-                <div className="h-full flex items-center justify-center text-muted-foreground">
-                  Loading...
+                <ChartLoadingSkeleton />
+              ) : isErrorKPI ? (
+                <ChartErrorFallback 
+                  title="Sentiment Analysis" 
+                  onRetry={handleRetryKPI}
+                  isRetrying={isRefetchingKPI}
+                />
+              ) : sentimentData.length === 0 ? (
+                <div className="h-full flex flex-col items-center justify-center text-muted-foreground gap-2">
+                  <ThumbsUp className="h-8 w-8 opacity-50" />
+                  <p className="text-sm">No sentiment data available</p>
                 </div>
               ) : (
                 <>
@@ -396,23 +498,34 @@ export default function Home() {
                         stroke="none"
                       >
                         {sentimentData.map((entry, index) => (
-                          <Cell key={`cell-${index}`} fill={entry.fill} />
+                          <Cell 
+                            key={`cell-${index}`} 
+                            fill={entry.fill}
+                            className="transition-all duration-200 hover:opacity-80 cursor-pointer"
+                            onClick={() => navigate(`/messages?sentiment=${entry.name.toLowerCase()}`)}
+                          />
                         ))}
                       </Pie>
                       <Tooltip
                         contentStyle={{
-                          backgroundColor: "var(--color-card)",
+                          backgroundColor: chartColors.tooltipBg,
                           borderRadius: "12px",
                           border: "none",
-                          boxShadow: "5px 5px 10px #d1d9e6",
+                          boxShadow: chartColors.tooltipShadow,
+                          color: isDark ? "#fff" : "#000",
                         }}
                         formatter={(value: number, name: string) => {
                           const total = sentimentData.reduce((sum, d) => sum + d.value, 0);
-                          const percentage = total > 0 ? Math.round((value / total) * 100) : 0;
+                          const percentage = total > 0 ? ((value / total) * 100).toFixed(1) : 0;
                           return [`${value.toLocaleString()} (${percentage}%)`, name];
                         }}
                       />
-                      <Legend verticalAlign="bottom" height={36} iconType="circle" />
+                      <Legend 
+                        verticalAlign="bottom" 
+                        height={36} 
+                        iconType="circle"
+                        formatter={(value) => <span style={{ color: chartColors.text }}>{value}</span>}
+                      />
                     </PieChart>
                   </ResponsiveContainer>
                   {/* Center Text Overlay */}
@@ -423,8 +536,8 @@ export default function Home() {
                 </>
               )}
             </div>
-            {/* Sentiment Breakdown Bar */}
-            {!isLoadingKPI && sentimentData.length > 0 && (
+            {/* Sentiment Breakdown Bar with hover effects */}
+            {!isLoadingKPI && !isErrorKPI && sentimentData.length > 0 && (
               <div className="mt-4 space-y-2">
                 <div className="flex h-3 rounded-full overflow-hidden">
                   {sentimentData.map((entry, index) => {
@@ -434,8 +547,9 @@ export default function Home() {
                       <div
                         key={index}
                         style={{ width: `${width}%`, backgroundColor: entry.fill }}
-                        className="transition-all duration-300"
-                        title={`${entry.name}: ${entry.value.toLocaleString()} (${Math.round(width)}%)`}
+                        className="transition-all duration-300 hover:brightness-110 cursor-pointer"
+                        title={`${entry.name}: ${entry.value.toLocaleString()} (${Math.round(width)}%) - Click to view messages`}
+                        onClick={() => navigate(`/messages?sentiment=${entry.name.toLowerCase()}`)}
                       />
                     );
                   })}
@@ -445,7 +559,11 @@ export default function Home() {
                     const total = sentimentData.reduce((sum, d) => sum + d.value, 0);
                     const percentage = total > 0 ? Math.round((entry.value / total) * 100) : 0;
                     return (
-                      <span key={entry.name} className="flex items-center gap-1">
+                      <span 
+                        key={entry.name} 
+                        className="flex items-center gap-1 cursor-pointer hover:text-foreground transition-colors"
+                        onClick={() => navigate(`/messages?sentiment=${entry.name.toLowerCase()}`)}
+                      >
                         <span className="h-2 w-2 rounded-full" style={{ backgroundColor: entry.fill }} />
                         {entry.name}: {percentage}%
                       </span>
@@ -460,7 +578,7 @@ export default function Home() {
 
       {/* Secondary Charts Row - Responsive */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 sm:gap-8">
-        {/* Peak Messaging Times (Bar Chart) */}
+        {/* Peak Messaging Times (Bar Chart) - Fixed with error boundary */}
         <div className="relative">
           <MetricCheckbox
             id="peakMessagingTimes"
@@ -475,38 +593,48 @@ export default function Home() {
                 <p className="text-xs sm:text-sm text-muted-foreground">Hourly activity distribution (24h)</p>
               </div>
               <div className="p-2 bg-accent/10 rounded-lg">
-                <TrendingUp className="h-4 w-4 sm:h-5 sm:w-5 text-accent" />
+                <TrendingUp className="h-4 w-4 sm:h-5 sm:w-5 text-accent-foreground" />
               </div>
             </div>
             <div className="flex-1 w-full min-h-[200px] sm:min-h-[300px]">
               {isLoadingHourly ? (
-                <div className="h-full flex items-center justify-center text-muted-foreground">
-                  Loading...
+                <ChartLoadingSkeleton />
+              ) : isErrorHourly ? (
+                <ChartErrorFallback 
+                  title="Peak Messaging Times" 
+                  onRetry={handleRetryHourly}
+                  isRetrying={isRefetchingHourly}
+                />
+              ) : formattedHourlyData.length === 0 ? (
+                <div className="h-full flex flex-col items-center justify-center text-muted-foreground gap-2">
+                  <TrendingUp className="h-8 w-8 opacity-50" />
+                  <p className="text-sm">No hourly data available</p>
                 </div>
               ) : (
                 <ResponsiveContainer width="100%" height="100%">
                   <BarChart data={formattedHourlyData}>
-                    <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="var(--color-border)" />
+                    <CartesianGrid strokeDasharray="3 3" vertical={false} stroke={chartColors.grid} />
                     <XAxis
                       dataKey="hour"
                       axisLine={false}
                       tickLine={false}
-                      tick={{ fill: "var(--color-muted-foreground)", fontSize: 9 }}
+                      tick={{ fill: chartColors.text, fontSize: 9 }}
                       interval={3}
                     />
                     <YAxis
                       axisLine={false}
                       tickLine={false}
-                      tick={{ fill: "var(--color-muted-foreground)", fontSize: 10 }}
+                      tick={{ fill: chartColors.text, fontSize: 10 }}
                       width={35}
                     />
                     <Tooltip
-                      cursor={{ fill: "transparent" }}
+                      cursor={{ fill: isDark ? "rgba(255,255,255,0.05)" : "rgba(0,0,0,0.05)" }}
                       contentStyle={{
-                        backgroundColor: "var(--color-card)",
+                        backgroundColor: chartColors.tooltipBg,
                         borderRadius: "12px",
                         border: "none",
-                        boxShadow: "5px 5px 10px #d1d9e6",
+                        boxShadow: chartColors.tooltipShadow,
+                        color: isDark ? "#fff" : "#000",
                       }}
                       formatter={(value: number, name: string, props: any) => {
                         const hour = props.payload?.hourNum;
@@ -515,7 +643,7 @@ export default function Home() {
                     />
                     <Bar
                       dataKey="messages"
-                      fill="var(--color-primary)"
+                      fill={chartColors.primary}
                       radius={[4, 4, 0, 0]}
                       barSize={16}
                     />
@@ -553,7 +681,7 @@ export default function Home() {
                       setSelectedQueryCategory(query.name);
                       navigate("/messages");
                     }}
-                    className="flex items-center justify-between p-2 sm:p-3 rounded-xl hover:bg-black/5 active:bg-black/10 transition-colors cursor-pointer group touch-manipulation"
+                    className="flex items-center justify-between p-2 sm:p-3 rounded-xl hover:bg-black/5 dark:hover:bg-white/5 active:bg-black/10 transition-colors cursor-pointer group touch-manipulation"
                     style={{ minHeight: "48px" }}
                   >
                     <div className="flex items-center gap-2 sm:gap-4">
