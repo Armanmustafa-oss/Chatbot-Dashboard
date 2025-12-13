@@ -8,7 +8,7 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import { cn } from "@/lib/utils";
-import { useAuth } from "@/_core/hooks/useAuth";
+// import { useAuth } from "@/_core/hooks/useAuth";
 import { NotificationBell } from "./NotificationBell";
 import {
   BarChart3,
@@ -34,7 +34,8 @@ export function DashboardLayout({ children }: { children: React.ReactNode }) {
   const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(false);
   const [showLogoutDialog, setShowLogoutDialog] = useState(false);
   const [isLoggingOut, setIsLoggingOut] = useState(false);
-  const { user, logout, loading } = useAuth();
+  const isAuthenticated = true; // Bypass auth for static dashboard
+  const loading = false;
 
   // Close mobile menu on route change
   useEffect(() => {

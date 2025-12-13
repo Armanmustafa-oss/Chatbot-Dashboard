@@ -1,13 +1,12 @@
-import { useState, useMemo } from "react";
+import { supabase } from '@/lib/supabaseClient';
+import { useState, useEffect, useMemo } from "react";
 import { useLocation } from "wouter";
 import { format } from "date-fns";
-import { trpc } from "@/lib/trpc";
 import { useTheme } from "@/contexts/ThemeContext";
 import { DashboardLayout } from "@/components/DashboardLayout";
 import { NeuCard, NeuStat } from "@/components/NeuCard";
 import { DateRangePicker, DateRange } from "@/components/DateRangePicker";
 import { ExportPanel } from "@/components/ExportPanel";
-import { SelectableMetric, getDefaultMetrics } from "@/lib/export-service";
 import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
@@ -74,7 +73,7 @@ function ChartErrorFallback({ title, onRetry, isRetrying }: { title: string; onR
   );
 }
 
-// Loading Skeleton for Charts
+// Chart Loading Skeleton
 function ChartLoadingSkeleton() {
   return (
     <div className="h-full flex flex-col items-center justify-center gap-3">
@@ -92,6 +91,13 @@ function formatHour(hour: number): string {
   return `${hour - 12} PM`;
 }
 
+type SelectableMetric = {
+  id: string;
+  label: string;
+  category: "kpi" | "chart" | "table";
+  selected: boolean;
+};
+
 export default function Home() {
   const [, navigate] = useLocation();
   const { theme } = useTheme();
@@ -103,7 +109,16 @@ export default function Home() {
   });
 
   // Selectable metrics for export
-  const [selectableMetrics, setSelectableMetrics] = useState<SelectableMetric[]>(getDefaultMetrics());
+  const [selectableMetrics, setSelectableMetrics] = useState<SelectableMetric[]>([
+    { id: "totalMessages", label: "Total Messages", category: "kpi", selected: true },
+    { id: "avgResponseTime", label: "Avg Response Time", category: "kpi", selected: true },
+    { id: "satisfactionScore", label: "Satisfaction Score", category: "kpi", selected: true },
+    { id: "costSaved", label: "Cost Saved", category: "kpi", selected: true },
+    { id: "messageVolumeTrend", label: "Message Volume Trend", category: "chart", selected: true },
+    { id: "sentimentAnalysis", label: "Sentiment Analysis", category: "chart", selected: true },
+    { id: "peakMessagingTimes", label: "Peak Messaging Times", category: "chart", selected: true },
+    { id: "topQueries", label: "Top Queries", category: "table", selected: true },
+  ]);
 
   // Top Queries Modal State
   const [isTopQueriesModalOpen, setIsTopQueriesModalOpen] = useState(false);
@@ -111,44 +126,26 @@ export default function Home() {
   const [selectedCategory, setSelectedCategory] = useState<string | null>(null);
   const [selectedQuery, setSelectedQuery] = useState<string | null>(null);
 
-  // Fetch real data from database
-  const { 
-    data: dailyData, 
-    isLoading: isLoadingDaily, 
-    isError: isErrorDaily,
-    refetch: refetchDaily,
-    isRefetching: isRefetchingDaily
-  } = trpc.analytics.getDailyData.useQuery({
-    startDate: dateRange.from,
-    endDate: dateRange.to,
-  });
+  // Real data states
+  const [dailyData, setDailyData] = useState<any[]>([]);
+  const [loadingDaily, setLoadingDaily] = useState(true);
+  const [errorDaily, setErrorDaily] = useState<Error | null>(null);
+  const [isRefetchingDaily, setIsRefetchingDaily] = useState(false);
 
-  const { 
-    data: hourlyData, 
-    isLoading: isLoadingHourly,
-    isError: isErrorHourly,
-    refetch: refetchHourly,
-    isRefetching: isRefetchingHourly
-  } = trpc.analytics.getHourlyPeakTimes.useQuery({
-    startDate: dateRange.from,
-    endDate: dateRange.to,
-  });
+  const [hourlyData, setHourlyData] = useState<any[]>([]);
+  const [loadingHourly, setLoadingHourly] = useState(true);
+  const [errorHourly, setErrorHourly] = useState<Error | null>(null);
+  const [isRefetchingHourly, setIsRefetchingHourly] = useState(false);
 
-  const { 
-    data: kpiData, 
-    isLoading: isLoadingKPI,
-    isError: isErrorKPI,
-    refetch: refetchKPI,
-    isRefetching: isRefetchingKPI
-  } = trpc.analytics.getKPISummary.useQuery({
-    startDate: dateRange.from,
-    endDate: dateRange.to,
-  });
+  const [kpiData, setKpiData] = useState<any>(null);
+  const [loadingKPI, setLoadingKPI] = useState(true);
+  const [errorKPI, setErrorKPI] = useState<Error | null>(null);
+  const [isRefetchingKPI, setIsRefetchingKPI] = useState(false);
 
-  const { data: topCategories } = trpc.analytics.getTopQueries.useQuery({ limit: 5 });
-  const { data: allCategories } = trpc.analytics.getTopQueries.useQuery({ limit: 50 });
-  const { data: topIndividualQueries } = trpc.analytics.getTopIndividualQueries.useQuery({ limit: 5 });
-  const { data: allIndividualQueries } = trpc.analytics.getTopIndividualQueries.useQuery({ limit: 50 });
+  const [topCategories, setTopCategories] = useState<any[]>([]);
+  const [allCategories, setAllCategories] = useState<any[]>([]);
+  const [topIndividualQueries, setTopIndividualQueries] = useState<any[]>([]);
+  const [allIndividualQueries, setAllIndividualQueries] = useState<any[]>([]);
 
   // HIGH CONTRAST CHART COLORS - Visible in both light and dark modes
   const chartColors = useMemo(() => ({
@@ -211,18 +208,24 @@ export default function Home() {
   }, [hourlyData]);
 
   const sentimentData = useMemo(() => {
-    // Always use sample data for now since database doesn't have sentiment counts populated
-    // When real data is available, this can be updated to use kpiData values
-    const positiveCount = 2530;
-    const neutralCount = 1000;
-    const negativeCount = 422;
-    
+    if (!kpiData) {
+      const positiveCount = 2530;
+      const neutralCount = 1000;
+      const negativeCount = 422;
+      
+      return [
+        { name: "Positive", value: positiveCount, fill: chartColors.positive },
+        { name: "Neutral", value: neutralCount, fill: chartColors.neutral },
+        { name: "Negative", value: negativeCount, fill: chartColors.negative },
+      ];
+    }
+
     return [
-      { name: "Positive", value: positiveCount, fill: chartColors.positive },
-      { name: "Neutral", value: neutralCount, fill: chartColors.neutral },
-      { name: "Negative", value: negativeCount, fill: chartColors.negative },
+      { name: "Positive", value: kpiData.positiveCount || 0, fill: chartColors.positive },
+      { name: "Neutral", value: kpiData.neutralCount || 0, fill: chartColors.neutral },
+      { name: "Negative", value: kpiData.negativeCount || 0, fill: chartColors.negative },
     ];
-  }, [chartColors]);
+  }, [kpiData, chartColors]);
 
   const positivePercentage = useMemo(() => {
     const total = sentimentData.reduce((sum, d) => sum + d.value, 0);
@@ -264,9 +267,166 @@ export default function Home() {
   };
 
   // Retry handlers
-  const handleRetryDaily = () => refetchDaily();
-  const handleRetryHourly = () => refetchHourly();
-  const handleRetryKPI = () => refetchKPI();
+  const handleRetryDaily = () => {
+    setIsRefetchingDaily(true);
+    setLoadingDaily(true);
+  };
+  
+  const handleRetryHourly = () => {
+    setIsRefetchingHourly(true);
+    setLoadingHourly(true);
+  };
+  
+  const handleRetryKPI = () => {
+    setIsRefetchingKPI(true);
+    setLoadingKPI(true);
+  };
+
+  // Fetch real data from Supabase
+  useEffect(() => {
+    const fetchData = async () => {
+      try {
+        // Get date range in ISO format for Supabase query
+        const startDate = dateRange.from.toISOString();
+        const endDate = dateRange.to.toISOString();
+
+        // 1. Fetch conversations data for the date range
+        const { data: conversations, error } = await supabase
+          .from('conversations')
+          .select('created_at, user_message, sentiment')
+          .gte('created_at', startDate)
+          .lte('created_at', endDate);
+
+        if (error) throw error;
+
+        // 2. Process daily data
+        const dailyCounts: any = {};
+        conversations.forEach((msg: any) => {
+          const date = format(new Date(msg.created_at), "yyyy-MM-dd");
+          if (!dailyCounts[date]) {
+            dailyCounts[date] = { date, totalMessages: 0 };
+          }
+          dailyCounts[date].totalMessages++;
+        });
+        setDailyData(Object.values(dailyCounts));
+        setLoadingDaily(false);
+        setIsRefetchingDaily(false);
+
+        // 3. Process hourly data
+        const hourlyCounts: any = {};
+        for (let hour = 0; hour < 24; hour++) {
+          hourlyCounts[hour] = { hour, totalMessages: 0 };
+        }
+        conversations.forEach((msg: any) => {
+          const hour = new Date(msg.created_at).getHours();
+          hourlyCounts[hour].totalMessages++;
+        });
+        setHourlyData(Object.values(hourlyCounts));
+        setLoadingHourly(false);
+        setIsRefetchingHourly(false);
+
+        // 4. Process KPI data
+        const totalMessages = conversations.length;
+        
+        // Count sentiments
+        let positiveCount = 0;
+        let neutralCount = 0;
+        let negativeCount = 0;
+        
+        conversations.forEach((msg: any) => {
+          const sentiment = msg.sentiment?.toLowerCase() || 'neutral';
+          if (sentiment.includes('positive') || sentiment.includes('good')) {
+            positiveCount++;
+          } else if (sentiment.includes('negative') || sentiment.includes('bad')) {
+            negativeCount++;
+          } else {
+            neutralCount++;
+          }
+        });
+
+        setKpiData({
+          totalMessages,
+          avgResponseTime: 1800, // Default 1.8 seconds
+          positiveCount,
+          neutralCount,
+          negativeCount
+        });
+        setLoadingKPI(false);
+        setIsRefetchingKPI(false);
+
+        // 5. Process top categories
+        const categoryCounts: any = {};
+        conversations.forEach((msg: any) => {
+          const text = msg.user_message.toLowerCase();
+          
+          let category = 'General Questions';
+          if (text.includes('fee') || text.includes('payment') || text.includes('cost') || text.includes('price')) {
+            category = 'Fee/Payment Information';
+          } else if (text.includes('admission') || text.includes('apply') || text.includes('enroll') || text.includes('join')) {
+            category = 'Admission Process';
+          } else if (text.includes('course') || text.includes('subject') || text.includes('program') || text.includes('major')) {
+            category = 'Course Information';
+          } else if (text.includes('contact') || text.includes('phone') || text.includes('email') || text.includes('address')) {
+            category = 'Contact Information';
+          } else if (text.includes('location') || text.includes('address') || text.includes('campus') || text.includes('building')) {
+            category = 'Campus Location';
+          } else if (text.includes('time') || text.includes('schedule') || text.includes('class') || text.includes('when')) {
+            category = 'Class Schedule';
+          }
+          
+          if (!categoryCounts[category]) {
+            categoryCounts[category] = 0;
+          }
+          categoryCounts[category]++;
+        });
+
+        // Convert to array and sort
+        const categoriesArray = Object.entries(categoryCounts)
+          .map(([name, count]) => ({ name, count: count as number }))
+          .sort((a, b) => b.count - a.count);
+        
+        setTopCategories(categoriesArray.slice(0, 5));
+        setAllCategories(categoriesArray);
+
+        // 6. Process top individual queries
+        const queryCounts: any = {};
+        conversations.forEach((msg: any) => {
+          const query = msg.user_message.trim();
+          if (query.length > 0) {
+            if (!queryCounts[query]) {
+              queryCounts[query] = 0;
+            }
+            queryCounts[query]++;
+          }
+        });
+
+        const queriesArray = Object.entries(queryCounts)
+          .map(([query, count]) => ({ 
+            query, 
+            count: count as number,
+            category: 'General' // Default category
+          }))
+          .sort((a, b) => b.count - a.count);
+        
+        setTopIndividualQueries(queriesArray.slice(0, 5));
+        setAllIndividualQueries(queriesArray);
+
+      } catch (error) {
+        console.error('Error fetching data:', error);
+        setErrorDaily(error as Error);
+        setErrorHourly(error as Error);
+        setErrorKPI(error as Error);
+        setLoadingDaily(false);
+        setLoadingHourly(false);
+        setLoadingKPI(false);
+        setIsRefetchingDaily(false);
+        setIsRefetchingHourly(false);
+        setIsRefetchingKPI(false);
+      }
+    };
+
+    fetchData();
+  }, [dateRange]);
 
   return (
     <DashboardLayout>
@@ -379,9 +539,9 @@ export default function Home() {
                 </div>
               </div>
               <div className="w-full h-[280px]">
-                {isLoadingDaily ? (
+                {loadingDaily ? (
                   <ChartLoadingSkeleton />
-                ) : isErrorDaily ? (
+                ) : errorDaily ? (
                   <ChartErrorFallback 
                     title="Message Volume Trend" 
                     onRetry={handleRetryDaily}
@@ -453,9 +613,9 @@ export default function Home() {
                 </div>
               </div>
               <div className="w-full h-[220px] relative">
-                {isLoadingKPI ? (
+                {loadingKPI ? (
                   <ChartLoadingSkeleton />
-                ) : isErrorKPI ? (
+                ) : errorKPI ? (
                   <ChartErrorFallback 
                     title="Sentiment Analysis" 
                     onRetry={handleRetryKPI}
@@ -572,9 +732,9 @@ export default function Home() {
                 </div>
               </div>
               <div className="w-full h-[280px]">
-                {isLoadingHourly ? (
+                {loadingHourly ? (
                   <ChartLoadingSkeleton />
-                ) : isErrorHourly ? (
+                ) : errorHourly ? (
                   <ChartErrorFallback 
                     title="Peak Messaging Times" 
                     onRetry={handleRetryHourly}
@@ -771,7 +931,16 @@ export default function Home() {
           <ExportPanel
             metrics={selectableMetrics}
             onMetricToggle={toggleMetric}
-            onClearAll={() => setSelectableMetrics(getDefaultMetrics())}
+            onClearAll={() => setSelectableMetrics([
+              { id: "totalMessages", label: "Total Messages", category: "kpi", selected: true },
+              { id: "avgResponseTime", label: "Avg Response Time", category: "kpi", selected: true },
+              { id: "satisfactionScore", label: "Satisfaction Score", category: "kpi", selected: true },
+              { id: "costSaved", label: "Cost Saved", category: "kpi", selected: true },
+              { id: "messageVolumeTrend", label: "Message Volume Trend", category: "chart", selected: true },
+              { id: "sentimentAnalysis", label: "Sentiment Analysis", category: "chart", selected: true },
+              { id: "peakMessagingTimes", label: "Peak Messaging Times", category: "chart", selected: true },
+              { id: "topQueries", label: "Top Queries", category: "table", selected: true },
+            ])}
             data={{
               kpiSummary: kpiData ? {
                 totalMessages: kpiData.totalMessages || 0,
