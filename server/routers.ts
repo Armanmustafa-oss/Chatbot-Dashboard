@@ -53,6 +53,13 @@ import {
   testSupabaseConnection,
 } from "./supabase";
 
+import {
+  signUp,
+  signIn,
+  getUserFromToken,
+  initializeAuthTable,
+} from "./auth-local";
+
 export const appRouter = router({
     // if you need to use socket.io, read and register route in server/_core/index.ts, all api should start with '/api/' so that the gateway can route correctly
   system: systemRouter,
@@ -65,6 +72,62 @@ export const appRouter = router({
         success: true,
       } as const;
     }),
+    
+    // Local authentication endpoints
+    signUp: publicProcedure
+      .input(z.object({
+        username: z.string().min(3),
+        password: z.string().min(6),
+        email: z.string().email().optional(),
+        name: z.string().optional(),
+      }))
+      .mutation(async ({ input, ctx }) => {
+        try {
+          const authToken = await signUp(
+            input.username,
+            input.password,
+            input.email,
+            input.name
+          );
+          
+          const cookieOptions = getSessionCookieOptions(ctx.req);
+          ctx.res.cookie(COOKIE_NAME, authToken.token, {
+            ...cookieOptions,
+            maxAge: authToken.expiresIn * 1000,
+          });
+          
+          return {
+            success: true,
+            user: authToken.user,
+          };
+        } catch (error: any) {
+          throw new Error(error.message);
+        }
+      }),
+    
+    signIn: publicProcedure
+      .input(z.object({
+        username: z.string(),
+        password: z.string(),
+      }))
+      .mutation(async ({ input, ctx }) => {
+        try {
+          const authToken = await signIn(input.username, input.password);
+          
+          const cookieOptions = getSessionCookieOptions(ctx.req);
+          ctx.res.cookie(COOKIE_NAME, authToken.token, {
+            ...cookieOptions,
+            maxAge: authToken.expiresIn * 1000,
+          });
+          
+          return {
+            success: true,
+            user: authToken.user,
+          };
+        } catch (error: any) {
+          throw new Error(error.message);
+        }
+      }),
   }),
 
   // Analytics Router
