@@ -10,10 +10,12 @@
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
     <link href="https://fonts.googleapis.com/css2?family=Nunito:wght@400;600;700;800&display=swap" rel="stylesheet" />
+    <!-- Analytics script - only loaded if VITE_ANALYTICS_ENDPOINT is configured -->
     <script
       defer
       src="%VITE_ANALYTICS_ENDPOINT%/umami"
       data-website-id="%VITE_ANALYTICS_WEBSITE_ID%"
+      onerror="console.log('Analytics not configured')"
     ></script>
   </head>
 
