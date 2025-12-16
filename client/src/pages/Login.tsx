@@ -31,14 +31,19 @@ export default function Login() {
           name: name || undefined,
         });
         toast.success('Account created successfully!');
+        setIsSignUp(false);
+        setUsername('');
+        setPassword('');
+        setEmail('');
+        setName('');
       } else {
         await signInMutation.mutateAsync({
           username,
           password,
         });
         toast.success('Signed in successfully!');
+        navigate('/');
       }
-      navigate('/');
     } catch (error: any) {
       toast.error(error.message || 'Authentication failed');
     } finally {
@@ -49,12 +54,14 @@ export default function Login() {
   return (
     <div className="min-h-screen bg-gradient-to-br from-slate-900 via-slate-800 to-slate-900 flex items-center justify-center p-4">
       <Card className="w-full max-w-md p-8 bg-slate-800 border-slate-700">
-        <div className="text-center mb-8">
+        <div className="mb-8">
           <h1 className="text-3xl font-bold text-white mb-2">
-            Student Analytics
+            {isSignUp ? 'Create Account' : 'Sign In'}
           </h1>
           <p className="text-slate-400">
-            {isSignUp ? 'Create your account' : 'Sign in to your account'}
+            {isSignUp 
+              ? 'Create a new account to get started' 
+              : 'Sign in to your account to continue'}
           </p>
         </div>
 
@@ -67,44 +74,12 @@ export default function Login() {
               type="text"
               value={username}
               onChange={(e) => setUsername(e.target.value)}
-              placeholder="Enter username"
-              className="bg-slate-700 border-slate-600 text-white placeholder-slate-400"
+              placeholder="Enter your username"
               disabled={isLoading}
+              className="bg-slate-700 border-slate-600 text-white placeholder:text-slate-500"
               required
             />
           </div>
-
-          {isSignUp && (
-            <>
-              <div>
-                <label className="block text-sm font-medium text-slate-300 mb-2">
-                  Email (optional)
-                </label>
-                <Input
-                  type="email"
-                  value={email}
-                  onChange={(e) => setEmail(e.target.value)}
-                  placeholder="Enter email"
-                  className="bg-slate-700 border-slate-600 text-white placeholder-slate-400"
-                  disabled={isLoading}
-                />
-              </div>
-
-              <div>
-                <label className="block text-sm font-medium text-slate-300 mb-2">
-                  Name (optional)
-                </label>
-                <Input
-                  type="text"
-                  value={name}
-                  onChange={(e) => setName(e.target.value)}
-                  placeholder="Enter full name"
-                  className="bg-slate-700 border-slate-600 text-white placeholder-slate-400"
-                  disabled={isLoading}
-                />
-              </div>
-            </>
-          )}
 
           <div>
             <label className="block text-sm font-medium text-slate-300 mb-2">
@@ -114,28 +89,51 @@ export default function Login() {
               type="password"
               value={password}
               onChange={(e) => setPassword(e.target.value)}
-              placeholder="Enter password"
-              className="bg-slate-700 border-slate-600 text-white placeholder-slate-400"
+              placeholder="Enter your password"
               disabled={isLoading}
+              className="bg-slate-700 border-slate-600 text-white placeholder:text-slate-500"
               required
             />
-            {isSignUp && (
-              <p className="text-xs text-slate-400 mt-1">
-                At least 6 characters
-              </p>
-            )}
           </div>
+
+          {isSignUp && (
+            <>
+              <div>
+                <label className="block text-sm font-medium text-slate-300 mb-2">
+                  Email (Optional)
+                </label>
+                <Input
+                  type="email"
+                  value={email}
+                  onChange={(e) => setEmail(e.target.value)}
+                  placeholder="Enter your email"
+                  disabled={isLoading}
+                  className="bg-slate-700 border-slate-600 text-white placeholder:text-slate-500"
+                />
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium text-slate-300 mb-2">
+                  Name (Optional)
+                </label>
+                <Input
+                  type="text"
+                  value={name}
+                  onChange={(e) => setName(e.target.value)}
+                  placeholder="Enter your name"
+                  disabled={isLoading}
+                  className="bg-slate-700 border-slate-600 text-white placeholder:text-slate-500"
+                />
+              </div>
+            </>
+          )}
 
           <Button
             type="submit"
             disabled={isLoading}
-            className="w-full bg-blue-600 hover:bg-blue-700 text-white font-medium py-2"
+            className="w-full bg-blue-600 hover:bg-blue-700 text-white font-semibold py-2"
           >
-            {isLoading
-              ? 'Loading...'
-              : isSignUp
-                ? 'Create Account'
-                : 'Sign In'}
+            {isLoading ? 'Loading...' : (isSignUp ? 'Create Account' : 'Sign In')}
           </Button>
         </form>
 
@@ -144,6 +142,7 @@ export default function Login() {
             {isSignUp ? 'Already have an account?' : "Don't have an account?"}
             {' '}
             <button
+              type="button"
               onClick={() => {
                 setIsSignUp(!isSignUp);
                 setUsername('');
@@ -151,19 +150,17 @@ export default function Login() {
                 setEmail('');
                 setName('');
               }}
-              className="text-blue-400 hover:text-blue-300 font-medium"
+              className="text-blue-400 hover:text-blue-300 font-semibold"
             >
               {isSignUp ? 'Sign In' : 'Sign Up'}
             </button>
           </p>
         </div>
 
-        <div className="mt-6 p-4 bg-slate-700 rounded-lg border border-slate-600">
-          <p className="text-xs text-slate-300">
-            <strong>Demo Credentials:</strong>
-            <br />
-            Username: <code className="text-blue-300">admin</code>
-            <br />
+        <div className="mt-8 p-4 bg-slate-700/50 rounded-lg border border-slate-600">
+          <p className="text-xs text-slate-400">
+            <strong>Demo Credentials:</strong><br />
+            Username: <code className="text-blue-300">admin</code><br />
             Password: <code className="text-blue-300">password123</code>
           </p>
         </div>

@@ -1,9 +1,11 @@
 import { useEffect, useState } from 'react';
+import { trpc } from '@/lib/trpc';
 
 export interface User {
   id: string;
   username: string;
   email?: string;
+  name?: string;
 }
 
 export interface AuthState {
@@ -21,58 +23,38 @@ export function useAuth(): AuthState & { logout: () => void } {
     isAuthenticated: false,
   });
 
-  useEffect(() => {
-    // Check if user is already logged in
-    const checkAuth = async () => {
-      try {
-        const response = await fetch('/api/trpc/auth.getUser', {
-          credentials: 'include',
-        });
+  // Use tRPC to check auth status
+  const { data: user, isLoading, error } = trpc.auth.getUser.useQuery();
+  const logoutMutation = trpc.auth.logout.useMutation();
 
-        if (response.ok) {
-          const data = await response.json();
-          if (data.result?.data) {
-            setAuthState({
-              user: data.result.data,
-              loading: false,
-              error: null,
-              isAuthenticated: true,
-            });
-          } else {
-            setAuthState({
-              user: null,
-              loading: false,
-              error: null,
-              isAuthenticated: false,
-            });
-          }
-        } else {
-          setAuthState({
-            user: null,
-            loading: false,
-            error: null,
-            isAuthenticated: false,
-          });
-        }
-      } catch (err) {
+  useEffect(() => {
+    if (!isLoading) {
+      if (user) {
+        setAuthState({
+          user: {
+            id: user.id || user.openId || '',
+            username: user.name || 'User',
+            email: user.email || undefined,
+            name: user.name || undefined,
+          },
+          loading: false,
+          error: null,
+          isAuthenticated: true,
+        });
+      } else {
         setAuthState({
           user: null,
           loading: false,
-          error: err instanceof Error ? err.message : 'Failed to check auth',
+          error: error ? error.message : null,
           isAuthenticated: false,
         });
       }
-    };
-
-    checkAuth();
-  }, []);
+    }
+  }, [user, isLoading, error]);
 
   const logout = async () => {
     try {
-      await fetch('/api/trpc/auth.logout', {
-        method: 'POST',
-        credentials: 'include',
-      });
+      await logoutMutation.mutateAsync();
       setAuthState({
         user: null,
         loading: false,
