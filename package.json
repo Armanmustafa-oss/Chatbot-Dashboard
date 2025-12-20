@@ -4,8 +4,8 @@
   "type": "module",
   "license": "MIT",
   "scripts": {
-    "dev": "cd client && pnpm dev",
-    "build": "cd client && pnpm build",
+    "dev": "pnpm --dir client dev",
+    "build": "pnpm --dir client build",
     "start": "cd client && pnpm build && npx serve -s dist -l $PORT",
     "check": "tsc --noEmit",
     "format": "prettier --write .",
