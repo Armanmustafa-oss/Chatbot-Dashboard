@@ -139,9 +139,9 @@ export default function Settings() {
     endDate: new Date(),
   });
 
-  const { data: apiKeys, refetch: refetchApiKeys } = trpc.apiKeys.list.useQuery();
-  const { data: emailRecipients, refetch: refetchRecipients } = trpc.emailRecipients.list.useQuery();
-  const { data: scheduledReports, refetch: refetchReports } = trpc.scheduledReports.list.useQuery();
+  const { data: apiKeys, refetch: refetchApiKeys } = { data: [], isLoading: false };
+  const { data: emailRecipients, refetch: refetchRecipients } = { data: [], isLoading: false };
+  const { data: scheduledReports, refetch: refetchReports } = { data: [], isLoading: false };
 
   const createApiKeyMutation = trpc.apiKeys.create.useMutation({
     onSuccess: (data) => {

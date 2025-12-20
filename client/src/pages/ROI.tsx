@@ -114,7 +114,7 @@ export default function ROI() {
     endDate: dateRange.to,
   });
 
-  const { data: topQueries } = trpc.analytics.getTopQueries.useQuery({ limit: 10 });
+  const { data: topQueries } = { data: [], isLoading: false };
 
   // Calculate ROI metrics with adjustable assumptions
   const roiMetrics = useMemo(() => {

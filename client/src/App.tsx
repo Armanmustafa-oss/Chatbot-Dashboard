@@ -11,29 +11,19 @@ import Students from "./pages/Students";
 import Settings from "./pages/Settings";
 import ROI from "./pages/ROI";
 import Login from "./pages/Login";
-import { useAuth } from "./_core/hooks/useAuth";
 import { useEffect } from "react";
 
 function ProtectedRoute({ component: Component }: { component: React.ComponentType }) {
-  const { isAuthenticated, loading } = useAuth();
-  const [, navigate] = useLocation();
+  const [location, navigate] = useLocation();
+  
+  // Check authentication from localStorage
+  const isAuthenticated = localStorage.getItem('isAuthenticated') === 'true';
 
   useEffect(() => {
-    if (!loading && !isAuthenticated) {
+    if (!isAuthenticated && location !== '/login') {
       navigate('/login');
     }
-  }, [isAuthenticated, loading, navigate]);
-
-  if (loading) {
-    return (
-      <div className="min-h-screen flex items-center justify-center bg-background">
-        <div className="text-center">
-          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary mx-auto mb-4"></div>
-          <p className="text-foreground">Loading...</p>
-        </div>
-      </div>
-    );
-  }
+  }, [isAuthenticated, location, navigate]);
 
   if (!isAuthenticated) {
     return null;
@@ -43,6 +33,16 @@ function ProtectedRoute({ component: Component }: { component: React.ComponentTy
 }
 
 function Router() {
+  const [location] = useLocation();
+  const isAuthenticated = localStorage.getItem('isAuthenticated') === 'true';
+
+  // If not authenticated and not on login page, redirect to login
+  useEffect(() => {
+    if (!isAuthenticated && location !== '/login') {
+      window.location.href = '/login';
+    }
+  }, [isAuthenticated, location]);
+
   return (
     <Switch>
       <Route path="/login" component={Login} />
@@ -56,11 +56,6 @@ function Router() {
     </Switch>
   );
 }
-
-// NOTE: About Theme
-// - First choose a default theme according to your design style (dark or light bg), than change color palette in index.css
-//   to keep consistent foreground/background color across components
-// - If you want to make theme switchable, pass `switchable` ThemeProvider and use `useTheme` hook
 
 function App() {
   return (
