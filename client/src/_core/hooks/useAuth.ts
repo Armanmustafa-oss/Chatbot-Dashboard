@@ -1,8 +1,6 @@
 import { useEffect, useState } from 'react';
-import { trpc } from '@/lib/trpc';
 
 export interface User {
-  id: string;
   username: string;
   email?: string;
   name?: string;
@@ -23,52 +21,49 @@ export function useAuth(): AuthState & { logout: () => void } {
     isAuthenticated: false,
   });
 
-  // Use tRPC to check auth status
-  const { data: user, isLoading, error } = trpc.auth.getUser.useQuery();
-  const logoutMutation = trpc.auth.logout.useMutation();
-
   useEffect(() => {
-    if (!isLoading) {
-      if (user) {
+    // Check if user is authenticated in localStorage
+    const isAuthenticated = localStorage.getItem('isAuthenticated') === 'true';
+    const userJson = localStorage.getItem('user');
+
+    if (isAuthenticated && userJson) {
+      try {
+        const user = JSON.parse(userJson);
         setAuthState({
-          user: {
-            id: user.id || user.openId || '',
-            username: user.name || 'User',
-            email: user.email || undefined,
-            name: user.name || undefined,
-          },
+          user,
           loading: false,
           error: null,
           isAuthenticated: true,
         });
-      } else {
+      } catch (error) {
         setAuthState({
           user: null,
           loading: false,
-          error: error ? error.message : null,
+          error: 'Failed to parse user data',
           isAuthenticated: false,
         });
       }
-    }
-  }, [user, isLoading, error]);
-
-  const logout = async () => {
-    try {
-      await logoutMutation.mutateAsync();
+    } else {
       setAuthState({
         user: null,
         loading: false,
         error: null,
         isAuthenticated: false,
       });
-      // Redirect to login
-      window.location.href = '/login';
-    } catch (err) {
-      setAuthState(prev => ({
-        ...prev,
-        error: err instanceof Error ? err.message : 'Logout failed',
-      }));
     }
+  }, []);
+
+  const logout = () => {
+    localStorage.removeItem('isAuthenticated');
+    localStorage.removeItem('user');
+    setAuthState({
+      user: null,
+      loading: false,
+      error: null,
+      isAuthenticated: false,
+    });
+    // Redirect to login
+    window.location.href = '/login';
   };
 
   return {
