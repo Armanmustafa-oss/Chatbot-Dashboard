@@ -11,12 +11,16 @@
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
     <link href="https://fonts.googleapis.com/css2?family=Nunito:wght@400;600;700;800&display=swap" rel="stylesheet" />
     <!-- Analytics script - only loaded if VITE_ANALYTICS_ENDPOINT is configured -->
-    <script
-      defer
-      src="%VITE_ANALYTICS_ENDPOINT%/umami"
-      data-website-id="%VITE_ANALYTICS_WEBSITE_ID%"
-      onerror="console.log('Analytics not configured')"
-    ></script>
+    <script>
+      if ('%VITE_ANALYTICS_ENDPOINT%' && '%VITE_ANALYTICS_ENDPOINT%' !== '' && !('%VITE_ANALYTICS_ENDPOINT%'.includes('%'))) {
+        const script = document.createElement('script');
+        script.defer = true;
+        script.src = '%VITE_ANALYTICS_ENDPOINT%/umami';
+        script.setAttribute('data-website-id', '%VITE_ANALYTICS_WEBSITE_ID%');
+        script.onerror = () => console.log('Analytics not configured');
+        document.head.appendChild(script);
+      }
+    </script>
   </head>
 
   <body>
