@@ -6,6 +6,7 @@
 
 import { createClient } from '@supabase/supabase-js';
 import jwt from 'jsonwebtoken';
+import { createHash } from 'crypto';
 
 const SUPABASE_URL = process.env.SUPABASE_URL || '';
 const SUPABASE_KEY = process.env.SUPABASE_KEY || '';
@@ -32,8 +33,7 @@ export interface AuthToken {
  */
 function hashPassword(password: string): string {
   // For development only - use bcrypt in production
-  const crypto = require('crypto');
-  return crypto.createHash('sha256').update(password).digest('hex');
+  return createHash('sha256').update(password).digest('hex');
 }
 
 /**
