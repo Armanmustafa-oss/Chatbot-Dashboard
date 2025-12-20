@@ -14,7 +14,6 @@ import { ScrollArea } from "@/components/ui/scroll-area";
 import { Separator } from "@/components/ui/separator";
 import { formatResponseTime } from "@/lib/export-service";
 import { parseNavigationParams, formatDateRangeForBreadcrumb } from "@/lib/navigation";
-import { trpc } from "@/lib/trpc";
 import { cn } from "@/lib/utils";
 import { format } from "date-fns";
 import {

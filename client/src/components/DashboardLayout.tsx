@@ -34,8 +34,12 @@ export function DashboardLayout({ children }: { children: React.ReactNode }) {
   const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(false);
   const [showLogoutDialog, setShowLogoutDialog] = useState(false);
   const [isLoggingOut, setIsLoggingOut] = useState(false);
-  const isAuthenticated = true; // Bypass auth for static dashboard
+  
+  // Get user from localStorage
+  const isAuthenticated = localStorage.getItem('isAuthenticated') === 'true';
   const loading = false;
+  const userJson = localStorage.getItem('user') || '{}';
+  const user = JSON.parse(userJson);
 
   // Close mobile menu on route change
   useEffect(() => {
@@ -243,7 +247,7 @@ export function DashboardLayout({ children }: { children: React.ReactNode }) {
             )}
 
             {/* User Info */}
-            {user && !isSidebarCollapsed && (
+            {user?.name && !isSidebarCollapsed && (
               <div className="p-3 rounded-xl bg-muted/30">
                 <p className="text-sm font-medium text-foreground truncate">
                   {user.name || "Administrator"}

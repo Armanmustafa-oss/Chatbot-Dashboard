@@ -30,7 +30,6 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { Separator } from "@/components/ui/separator";
-import { trpc } from "@/lib/trpc";
 import { cn } from "@/lib/utils";
 import { format, formatDistanceToNow, subDays } from "date-fns";
 import {

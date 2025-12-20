@@ -12,7 +12,6 @@ import {
 import { Progress } from "@/components/ui/progress";
 import { Slider } from "@/components/ui/slider";
 import { Separator } from "@/components/ui/separator";
-import { trpc } from "@/lib/trpc";
 import { formatResponseTime } from "@/lib/export-service";
 import { cn } from "@/lib/utils";
 import {
