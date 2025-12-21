@@ -89,8 +89,7 @@ export function DashboardLayout({ children }: { children: React.ReactNode }) {
       localStorage.removeItem("user-session");
       sessionStorage.clear();
       
-      // Call the logout function from auth hook
-      await logout();
+      // Logout is handled by clearing localStorage
       
       // Show success message
       toast.success("Logged out successfully", {
