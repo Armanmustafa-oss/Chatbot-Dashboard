@@ -65,6 +65,12 @@ import {
   Area,
   AreaChart,
 } from "recharts";
+// ✅ CHANGES START: Removed trpc import
+// import { trpc } from "@/lib/trpc";
+// ✅ CHANGES END
+// ✅ CHANGES START: Added mock data import
+import { mockAnalyticsData } from "@/lib/mockData";
+// ✅ CHANGES END
 
 interface Initiative {
   id: string;
@@ -82,7 +88,6 @@ interface Initiative {
   studentCount: number;
   timeSavingsHours: number;
 }
-
 interface KnowledgeGap {
   topic: string;
   unanswered: number;
@@ -92,7 +97,6 @@ interface KnowledgeGap {
   avgResponseTime: string;
   topQuestions: string[];
 }
-
 export default function ROI() {
   const [dateRange, setDateRange] = useState<DateRange>({
     from: new Date(Date.now() - 30 * 24 * 60 * 60 * 1000),
@@ -102,32 +106,28 @@ export default function ROI() {
   const [selectedGap, setSelectedGap] = useState<KnowledgeGap | null>(null);
   const [selectedDepartment, setSelectedDepartment] = useState<any>(null);
   const [expandedSection, setExpandedSection] = useState<string | null>("executive");
-  
   // Cost calculator state
   const [avgHandlingTime, setAvgHandlingTime] = useState(5);
   const [hourlyRate, setHourlyRate] = useState(25);
   const [automationRate, setAutomationRate] = useState(62);
-
   // Fetch data
-  const { data: kpiData, isLoading: isLoadingKPI } = trpc.analytics.getKPISummary.useQuery({
-    startDate: dateRange.from,
-    endDate: dateRange.to,
-  });
-
-  const { data: topQueries } = { data: [], isLoading: false };
+  // ✅ CHANGES START: Replaced tRPC call with mock data
+  const kpiData = mockAnalyticsData.getKPISummary();
+  const isLoadingKPI = false;
+  const topQueries = []; // Remove isLoading property
+  const isLoading = false;
+  // ✅ CHANGES END
 
   // Calculate ROI metrics with adjustable assumptions
   const roiMetrics = useMemo(() => {
     const totalMessages = kpiData?.totalMessages || 0;
     const botMonthlyCost = 500;
-
     const automatedQueries = Math.round(totalMessages * (automationRate / 100));
     const minutesSaved = automatedQueries * avgHandlingTime;
     const hoursSaved = minutesSaved / 60;
     const laborCostSaved = hoursSaved * hourlyRate;
     const netSavings = laborCostSaved - botMonthlyCost;
     const roi = botMonthlyCost > 0 ? ((netSavings / botMonthlyCost) * 100).toFixed(0) : 0;
-
     return {
       totalMessages,
       automatedQueries,
@@ -496,7 +496,6 @@ export default function ROI() {
         timeline: i.timeline,
       })),
     };
-
     const blob = new Blob([JSON.stringify(report, null, 2)], { type: "application/json" });
     const url = URL.createObjectURL(blob);
     const a = document.createElement("a");
@@ -524,7 +523,6 @@ export default function ROI() {
               Strategic insights for institutional decision-making
             </p>
           </div>
-
           <div className="flex items-center gap-2 flex-wrap">
             <DateRangePicker dateRange={dateRange} onDateRangeChange={setDateRange} />
             <div className="relative group">
@@ -568,7 +566,6 @@ export default function ROI() {
             </div>
           </div>
         </div>
-
         {/* Executive Summary Section */}
         <NeuCard className="border-l-4 border-l-primary">
           <button
@@ -586,7 +583,6 @@ export default function ROI() {
             </div>
             <ChevronRight className={cn("h-5 w-5 transition-transform", expandedSection === "executive" && "rotate-90")} />
           </button>
-          
           {expandedSection === "executive" && (
             <div className="px-6 pb-6 space-y-6">
               <div className="p-6 bg-gradient-to-r from-primary/5 to-primary/10 rounded-xl">
@@ -599,7 +595,6 @@ export default function ROI() {
                   across all departments.
                 </p>
               </div>
-
               {/* Key Metrics Grid */}
               <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
                 <div className="p-4 bg-green-50 dark:bg-green-950/30 rounded-xl text-center">
@@ -622,7 +617,6 @@ export default function ROI() {
             </div>
           )}
         </NeuCard>
-
         {/* Section 1: Eliminating Siloed Data */}
         <NeuCard>
           <button
@@ -640,7 +634,6 @@ export default function ROI() {
             </div>
             <ChevronRight className={cn("h-5 w-5 transition-transform", expandedSection === "data" && "rotate-90")} />
           </button>
-          
           {expandedSection === "data" && (
             <div className="px-6 pb-6 space-y-6">
               <p className="text-muted-foreground">
@@ -648,7 +641,6 @@ export default function ROI() {
                 ticketing systems, spreadsheets, and phone logs. Generating quarterly reports required staff to spend 
                 days aggregating data manually.
               </p>
-
               {/* Before/After Comparison */}
               <div className="grid md:grid-cols-2 gap-6">
                 <div className="p-6 bg-red-50 dark:bg-red-950/20 rounded-xl border border-red-200 dark:border-red-900">
@@ -700,7 +692,6 @@ export default function ROI() {
                   </ul>
                 </div>
               </div>
-
               <div className="p-4 bg-primary/5 rounded-lg text-center">
                 <p className="text-2xl font-bold text-primary">99.3%</p>
                 <p className="text-sm text-muted-foreground">Time savings on report generation</p>
@@ -708,7 +699,6 @@ export default function ROI() {
             </div>
           )}
         </NeuCard>
-
         {/* Section 2: Real-Time Visibility */}
         <NeuCard>
           <button
@@ -726,14 +716,12 @@ export default function ROI() {
             </div>
             <ChevronRight className={cn("h-5 w-5 transition-transform", expandedSection === "visibility" && "rotate-90")} />
           </button>
-          
           {expandedSection === "visibility" && (
             <div className="px-6 pb-6 space-y-6">
               <p className="text-muted-foreground">
                 Traditional monthly reporting means issues fester for weeks before appearing in official reports. 
                 The dashboard enables real-time visibility through continuously updating metrics and automated alerts.
               </p>
-
               {/* Alert Prevention Timeline */}
               <div className="space-y-4">
                 <h3 className="font-semibold">Early Detection Prevented Issues</h3>
@@ -775,7 +763,6 @@ export default function ROI() {
             </div>
           )}
         </NeuCard>
-
         {/* Section 3: Operational Efficiency - Interactive Cost Calculator */}
         <NeuCard>
           <button
@@ -793,7 +780,6 @@ export default function ROI() {
             </div>
             <ChevronRight className={cn("h-5 w-5 transition-transform", expandedSection === "efficiency" && "rotate-90")} />
           </button>
-          
           {expandedSection === "efficiency" && (
             <div className="px-6 pb-6 space-y-6">
               {/* Self-Service Rate Highlight */}
@@ -804,14 +790,12 @@ export default function ROI() {
                   The bot successfully answered {roiMetrics.automationRate}% of all student queries without human intervention
                 </p>
               </div>
-
               {/* Interactive Cost Calculator */}
               <div className="p-6 border rounded-xl space-y-6">
                 <h3 className="font-bold flex items-center gap-2">
                   <Settings className="h-5 w-5" />
                   Adjust Assumptions to Calculate Your ROI
                 </h3>
-                
                 <div className="grid md:grid-cols-3 gap-6">
                   <div className="space-y-3">
                     <label className="text-sm font-medium">
@@ -827,7 +811,6 @@ export default function ROI() {
                     />
                     <p className="text-xs text-muted-foreground">Industry average: 5-7 minutes</p>
                   </div>
-                  
                   <div className="space-y-3">
                     <label className="text-sm font-medium">
                       Staff Hourly Rate: <span className="text-primary">${hourlyRate}/hr</span>
@@ -842,7 +825,6 @@ export default function ROI() {
                     />
                     <p className="text-xs text-muted-foreground">Including benefits & overhead</p>
                   </div>
-                  
                   <div className="space-y-3">
                     <label className="text-sm font-medium">
                       Automation Rate: <span className="text-primary">{automationRate}%</span>
@@ -858,9 +840,7 @@ export default function ROI() {
                     <p className="text-xs text-muted-foreground">Current measured rate: 62%</p>
                   </div>
                 </div>
-
                 <Separator />
-
                 {/* Calculated Results */}
                 <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
                   <div className="p-4 bg-muted rounded-lg text-center">
@@ -880,7 +860,6 @@ export default function ROI() {
                     <p className="text-xs text-muted-foreground">Cost Savings</p>
                   </div>
                 </div>
-
                 {/* Calculation Breakdown */}
                 <div className="p-4 bg-muted/50 rounded-lg text-sm font-mono">
                   <p>Calculation: {roiMetrics.automatedQueries.toLocaleString()} queries × {avgHandlingTime} min ÷ 60 = {roiMetrics.hoursSaved} hours</p>
@@ -888,7 +867,6 @@ export default function ROI() {
                   <p>Net ROI: ${roiMetrics.laborCostSaved.toLocaleString()} - ${roiMetrics.botMonthlyCost} (bot cost) = ${roiMetrics.netSavings.toLocaleString()}</p>
                 </div>
               </div>
-
               {/* Bot vs Human Comparison */}
               <div className="grid md:grid-cols-3 gap-4">
                 <div className="p-4 border rounded-lg">
@@ -943,7 +921,6 @@ export default function ROI() {
             </div>
           )}
         </NeuCard>
-
         {/* Section 4: Compliance & Quality Control */}
         <NeuCard>
           <button
@@ -961,14 +938,12 @@ export default function ROI() {
             </div>
             <ChevronRight className={cn("h-5 w-5 transition-transform", expandedSection === "compliance" && "rotate-90")} />
           </button>
-          
           {expandedSection === "compliance" && (
             <div className="px-6 pb-6 space-y-6">
               <p className="text-muted-foreground">
                 The dashboard maintains comprehensive audit logs and quality metrics to ensure accountability 
                 and compliance with institutional standards.
               </p>
-
               <div className="grid md:grid-cols-2 gap-6">
                 <div className="p-4 border rounded-lg space-y-4">
                   <h3 className="font-semibold flex items-center gap-2">
@@ -998,7 +973,6 @@ export default function ROI() {
                     </li>
                   </ul>
                 </div>
-                
                 <div className="p-4 border rounded-lg space-y-4">
                   <h3 className="font-semibold flex items-center gap-2">
                     <Target className="h-5 w-5" />
@@ -1027,7 +1001,6 @@ export default function ROI() {
             </div>
           )}
         </NeuCard>
-
         {/* Section 5: Adoption Success */}
         <NeuCard>
           <button
@@ -1045,7 +1018,6 @@ export default function ROI() {
             </div>
             <ChevronRight className={cn("h-5 w-5 transition-transform", expandedSection === "adoption" && "rotate-90")} />
           </button>
-          
           {expandedSection === "adoption" && (
             <div className="px-6 pb-6 space-y-6">
               <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
@@ -1068,7 +1040,6 @@ export default function ROI() {
                   <p className="text-xs text-muted-foreground">{adoptionMetrics.satisfactionScore}/5 Satisfaction</p>
                 </div>
               </div>
-
               {/* Feature Utilization */}
               <div className="space-y-3">
                 <h3 className="font-semibold">Feature Utilization</h3>
@@ -1085,7 +1056,6 @@ export default function ROI() {
             </div>
           )}
         </NeuCard>
-
         {/* Section 6: Strategic Recommendations */}
         <NeuCard>
           <button
@@ -1103,7 +1073,6 @@ export default function ROI() {
             </div>
             <ChevronRight className={cn("h-5 w-5 transition-transform", expandedSection === "recommendations" && "rotate-90")} />
           </button>
-          
           {expandedSection === "recommendations" && (
             <div className="px-6 pb-6 space-y-4">
               {initiatives.map((initiative) => (
@@ -1143,7 +1112,6 @@ export default function ROI() {
             </div>
           )}
         </NeuCard>
-
         {/* Departmental Performance */}
         <NeuCard className="p-6">
           <h2 className="text-xl font-bold mb-4 flex items-center gap-2">
@@ -1194,7 +1162,6 @@ export default function ROI() {
             Click on a bubble to view department details. Size = query volume, Color = satisfaction level
           </p>
         </NeuCard>
-
         {/* Knowledge Gaps */}
         <NeuCard className="p-6">
           <h2 className="text-xl font-bold mb-4 flex items-center gap-2">
@@ -1229,7 +1196,6 @@ export default function ROI() {
           </div>
         </NeuCard>
       </div>
-
       {/* Initiative Detail Modal */}
       <Dialog open={selectedInitiative !== null} onOpenChange={(open) => !open && setSelectedInitiative(null)}>
         <DialogContent className="max-w-2xl max-h-[90vh] flex flex-col p-0 gap-0">
@@ -1237,7 +1203,6 @@ export default function ROI() {
             <DialogTitle>{selectedInitiative?.title}</DialogTitle>
             <DialogDescription>Implementation details and roadmap</DialogDescription>
           </DialogHeader>
-          
           <div className="flex-1 overflow-y-auto p-6 space-y-6">
             {selectedInitiative && (
               <>
@@ -1256,14 +1221,12 @@ export default function ROI() {
                     <p className="text-xs text-muted-foreground">Students Impacted</p>
                   </div>
                 </div>
-
                 {/* Complexity */}
                 <div>
                   <p className="text-sm font-medium mb-2">Implementation Complexity</p>
                   <Progress value={selectedInitiative.complexity} className="h-3" />
                   <p className="text-xs text-muted-foreground mt-1">{selectedInitiative.complexity}% complexity</p>
                 </div>
-
                 {/* Required Resources */}
                 <div>
                   <p className="text-sm font-medium mb-2">Required Resources</p>
@@ -1276,7 +1239,6 @@ export default function ROI() {
                     ))}
                   </ul>
                 </div>
-
                 {/* Risk Factors */}
                 <div>
                   <p className="text-sm font-medium mb-2">Risk Factors</p>
@@ -1289,7 +1251,6 @@ export default function ROI() {
                     ))}
                   </ul>
                 </div>
-
                 {/* Success Metrics */}
                 <div>
                   <p className="text-sm font-medium mb-2">Success Metrics</p>
@@ -1302,7 +1263,6 @@ export default function ROI() {
                     ))}
                   </ul>
                 </div>
-
                 {/* Implementation Steps */}
                 <div>
                   <p className="text-sm font-medium mb-3">Implementation Roadmap</p>
@@ -1326,7 +1286,6 @@ export default function ROI() {
               </>
             )}
           </div>
-
           <div className="p-4 border-t flex-shrink-0 flex justify-end gap-2">
             <Button variant="outline" onClick={() => setSelectedInitiative(null)}>
               Close
@@ -1340,7 +1299,6 @@ export default function ROI() {
           </div>
         </DialogContent>
       </Dialog>
-
       {/* Knowledge Gap Detail Modal */}
       <Dialog open={selectedGap !== null} onOpenChange={(open) => !open && setSelectedGap(null)}>
         <DialogContent className="max-w-lg max-h-[90vh] flex flex-col p-0 gap-0">
@@ -1348,7 +1306,6 @@ export default function ROI() {
             <DialogTitle>{selectedGap?.topic}</DialogTitle>
             <DialogDescription>Knowledge gap analysis and top questions</DialogDescription>
           </DialogHeader>
-          
           <div className="flex-1 overflow-y-auto p-6 space-y-6">
             {selectedGap && (
               <>
@@ -1366,7 +1323,6 @@ export default function ROI() {
                     <p className="text-xs text-muted-foreground">Potential/mo</p>
                   </div>
                 </div>
-
                 <div>
                   <p className="text-sm font-medium mb-3">Top Questions Asked</p>
                   <ul className="space-y-2">
@@ -1380,7 +1336,6 @@ export default function ROI() {
               </>
             )}
           </div>
-
           <div className="p-4 border-t flex-shrink-0 flex justify-end gap-2">
             <Button variant="outline" onClick={() => setSelectedGap(null)}>
               Close
@@ -1394,7 +1349,6 @@ export default function ROI() {
           </div>
         </DialogContent>
       </Dialog>
-
       {/* Department Detail Modal */}
       <Dialog open={selectedDepartment !== null} onOpenChange={(open) => !open && setSelectedDepartment(null)}>
         <DialogContent className="max-w-lg max-h-[90vh] flex flex-col p-0 gap-0">
@@ -1402,7 +1356,6 @@ export default function ROI() {
             <DialogTitle>{selectedDepartment?.name} Department</DialogTitle>
             <DialogDescription>Performance metrics and insights</DialogDescription>
           </DialogHeader>
-          
           <div className="flex-1 overflow-y-auto p-6 space-y-6">
             {selectedDepartment && (
               <>
@@ -1430,7 +1383,6 @@ export default function ROI() {
                     <p className="text-xs text-muted-foreground">Avg Response</p>
                   </div>
                 </div>
-
                 <div>
                   <p className="text-sm font-medium mb-2">Trend</p>
                   <p className={cn(
@@ -1440,7 +1392,6 @@ export default function ROI() {
                     {selectedDepartment.trend} vs last period
                   </p>
                 </div>
-
                 <div>
                   <p className="text-sm font-medium mb-2">Top Queries</p>
                   <ul className="space-y-1">
@@ -1452,7 +1403,6 @@ export default function ROI() {
                     ))}
                   </ul>
                 </div>
-
                 <div className="p-4 bg-green-50 dark:bg-green-950/30 rounded-lg">
                   <p className="text-sm text-muted-foreground">Staff Hours Saved</p>
                   <p className="text-2xl font-bold text-green-600">{selectedDepartment.staffSaved} hours/month</p>
@@ -1460,7 +1410,6 @@ export default function ROI() {
               </>
             )}
           </div>
-
           <div className="p-4 border-t flex-shrink-0 flex justify-end">
             <Button variant="outline" onClick={() => setSelectedDepartment(null)}>
               Close

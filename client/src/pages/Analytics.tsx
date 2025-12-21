@@ -434,7 +434,7 @@ export default function Analytics() {
             <div className="flex items-center justify-between">
               <div>
                 <p className="text-slate-400 text-sm mb-1">Avg Response Time</p>
-                <p className="text-2xl font-bold text-white">{kpiData?.responseTime?.toFixed(1) || 0}s</p>
+                <p className="text-2xl font-bold text-white">{(kpiData?.avgResponseTime || 0) / 1000} s</p>
               </div>
               <Clock className="h-8 w-8 text-orange-500" />
             </div>

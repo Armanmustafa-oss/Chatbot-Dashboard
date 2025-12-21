@@ -1,73 +1,77 @@
-import { Toaster } from "sonner";
+import { Toaster } from "@/components/ui/sonner";
 import { TooltipProvider } from "@/components/ui/tooltip";
-import NotFound from "@/pages/NotFound";
-import { Route, Switch, useLocation } from "wouter";
-import ErrorBoundary from "./components/ErrorBoundary";
-import { ThemeProvider } from "./contexts/ThemeContext";
+import { ThemeProvider } from "@/contexts/ThemeContext";
+import { Route, Switch } from "wouter";
+import { DashboardLayout } from "./components/DashboardLayout";
+import Login from "./pages/Login";
 import Home from "./pages/Home";
-import Analytics from "./pages/Analytics";
 import Messages from "./pages/Messages";
 import Students from "./pages/Students";
-import Settings from "./pages/Settings";
 import ROI from "./pages/ROI";
-import Login from "./pages/Login";
-import { useEffect } from "react";
-
-function ProtectedRoute({ component: Component }: { component: React.ComponentType }) {
-  const [location, navigate] = useLocation();
-  
-  // Check authentication from localStorage
-  const isAuthenticated = localStorage.getItem('isAuthenticated') === 'true';
-
-  useEffect(() => {
-    if (!isAuthenticated && location !== '/login') {
-      navigate('/login');
-    }
-  }, [isAuthenticated, location, navigate]);
-
-  if (!isAuthenticated) {
-    return null;
-  }
-
-  return <Component />;
-}
+import Settings from "./pages/Settings";
+import Analytics from "./pages/Analytics";
 
 function Router() {
-  const [location] = useLocation();
   const isAuthenticated = localStorage.getItem('isAuthenticated') === 'true';
-
-  // If not authenticated and not on login page, redirect to login
-  useEffect(() => {
-    if (!isAuthenticated && location !== '/login') {
-      window.location.href = '/login';
-    }
-  }, [isAuthenticated, location]);
-
+  
   return (
     <Switch>
+      {!isAuthenticated ? (
+        <Route path="/login" component={Login} />
+      ) : (
+        <>
+          <Route path="/" component={() => (
+            <DashboardLayout>
+              <Home />
+            </DashboardLayout>
+          )} />
+          <Route path="/messages" component={() => (
+            <DashboardLayout>
+              <Messages />
+            </DashboardLayout>
+          )} />
+          <Route path="/students" component={() => (
+            <DashboardLayout>
+              <Students />
+            </DashboardLayout>
+          )} />
+          <Route path="/roi" component={() => (
+            <DashboardLayout>
+              <ROI />
+            </DashboardLayout>
+          )} />
+          <Route path="/settings" component={() => (
+            <DashboardLayout>
+              <Settings />
+            </DashboardLayout>
+          )} />
+          <Route path="/analytics" component={() => (
+            <DashboardLayout>
+              <Analytics />
+            </DashboardLayout>
+          )} />
+        </>
+      )}
       <Route path="/login" component={Login} />
-      <Route path="/" component={() => <ProtectedRoute component={Home} />} />
-      <Route path="/analytics" component={() => <ProtectedRoute component={Analytics} />} />
-      <Route path="/roi" component={() => <ProtectedRoute component={ROI} />} />
-      <Route path="/messages" component={() => <ProtectedRoute component={Messages} />} />
-      <Route path="/students" component={() => <ProtectedRoute component={Students} />} />
-      <Route path="/settings" component={() => <ProtectedRoute component={Settings} />} />
-      <Route component={NotFound} />
+      <Route>
+        <div className="min-h-screen flex items-center justify-center">
+          <div className="text-center">
+            <h1 className="text-2xl font-bold">404 - Page Not Found</h1>
+            <p className="text-muted-foreground">The page you're looking for doesn't exist.</p>
+          </div>
+        </div>
+      </Route>
     </Switch>
   );
 }
 
-function App() {
+export default function App() {
   return (
-    <ErrorBoundary>
-      <ThemeProvider defaultTheme="light" switchable>
-        <TooltipProvider>
-          <Toaster />
-          <Router />
-        </TooltipProvider>
-      </ThemeProvider>
-    </ErrorBoundary>
+    <ThemeProvider defaultTheme="dark">
+      <TooltipProvider>
+        <Toaster />
+        <Router />
+      </TooltipProvider>
+    </ThemeProvider>
   );
 }
-
-export default App;

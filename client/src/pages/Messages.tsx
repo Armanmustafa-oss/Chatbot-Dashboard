@@ -40,6 +40,12 @@ import { useState, useMemo } from "react";
 import { useLocation, useSearch } from "wouter";
 import { toast } from "sonner";
 
+// ✅ CHANGES START HERE
+// 1. Removed: import { trpc } from "@/lib/trpc";
+// 2. Added mock data import
+import { mockMessagesData } from "@/lib/mockData";
+// ✅ CHANGES END HERE
+
 export default function Messages() {
   const [, navigate] = useLocation();
   const searchString = useSearch();
@@ -65,39 +71,33 @@ export default function Messages() {
   const sourcePageLabel = navParams.source === "analytics" ? "Analytics" : 
                           navParams.source === "students" ? "Students" : null;
 
-  // Fetch messages with filters
-  const { data, isLoading } = trpc.messages.list.useQuery({
-    sentiment: sentimentFilter === "all" ? undefined : sentimentFilter as 'positive' | 'neutral' | 'negative',
-    category: categoryFilter === "all" ? undefined : categoryFilter,
-    startDate: dateRange.from,
-    endDate: dateRange.to,
-    limit,
-    offset: page * limit,
-  });
+  // ✅ CHANGES START HERE
+  // 3. Replaced tRPC calls with mock data
+  const [data, setData] = useState(mockMessagesData.list());
+  const isLoading = false;
+  // ✅ CHANGES END HERE
 
   // Fetch message detail
-  const { data: messageDetail, isLoading: isLoadingDetail } = trpc.messages.getById.useQuery(
-    { id: selectedMessage! },
-    { enabled: selectedMessage !== null }
-  );
+  const messageDetail = selectedMessage !== null 
+  ? { 
+      message: mockMessagesData.getById(selectedMessage), 
+      student: { id: 1, name: "John Doe", studentId: "STU001" } // Add proper structure
+    }
+  : null;
+  const isLoadingDetail = false;
 
   // Fetch conversation history for selected student
-  const { data: conversationHistory, isLoading: isLoadingHistory } = trpc.messages.list.useQuery(
-    {
-      limit: 50,
-      offset: 0,
-    },
-    { enabled: showConversationHistory && messageDetail?.student !== null }
-  );
+  const [conversationHistory, setConversationHistory] = useState({ messages: mockMessagesData.list() });
+  const isLoadingHistory = false;
 
-  const messages = data?.messages || [];
-  const total = data?.total || 0;
+  const messages = data || [];
+  const total = messages.length;
   const totalPages = Math.ceil(total / limit);
 
   // Calculate sentiment counts from messages
   const sentimentCounts = useMemo(() => {
     const counts = { positive: 0, neutral: 0, negative: 0, all: total };
-    messages.forEach((m) => {
+    messages.forEach((m: any) => {
       if (m.sentiment === "positive") counts.positive++;
       else if (m.sentiment === "negative") counts.negative++;
       else counts.neutral++;
@@ -108,7 +108,7 @@ export default function Messages() {
   // Unique categories from data
   const uniqueCategories = useMemo(() => {
     const catMap = new Map<string, number>();
-    messages.forEach((m) => {
+    messages.forEach((m: any) => {
       if (m.category) {
         catMap.set(m.category, (catMap.get(m.category) || 0) + 1);
       }
@@ -124,7 +124,7 @@ export default function Messages() {
     if (searchQuery) {
       const query = searchQuery.toLowerCase();
       filtered = filtered.filter(
-        (m) =>
+        (m: any) =>
           m.query.toLowerCase().includes(query) ||
           (m.response && m.response.toLowerCase().includes(query)) ||
           (m.category && m.category.toLowerCase().includes(query))
@@ -134,12 +134,12 @@ export default function Messages() {
     // Rating filter
     if (ratingFilter !== "all") {
       const rating = parseInt(ratingFilter);
-      filtered = filtered.filter((m) => m.rating === rating);
+      filtered = filtered.filter((m: any) => m.rating === rating);
     }
 
     // Response time filter
     if (responseTimeFilter !== "all") {
-      filtered = filtered.filter((m) => {
+      filtered = filtered.filter((m: any) => {
         if (!m.responseTimeMs) return false;
         switch (responseTimeFilter) {
           case "instant":
@@ -163,7 +163,7 @@ export default function Messages() {
   const studentConversations = useMemo(() => {
     if (!conversationHistory || !messageDetail?.student) return [];
     return conversationHistory.messages.filter(
-      (m) => m.studentId === messageDetail.message.studentId
+      (m: any) => m.studentId === messageDetail.message.studentId
     );
   }, [conversationHistory, messageDetail]);
 
@@ -205,7 +205,7 @@ export default function Messages() {
 
   const handleExportMessages = () => {
     const headers = ["Date", "Student ID", "Query", "Response", "Sentiment", "Category", "Response Time", "Rating"];
-    const rows = filteredMessages.map((m) => [
+    const rows = filteredMessages.map((m: any) => [
       formatDate(m.createdAt),
       m.studentId,
       `"${m.query.replace(/"/g, '""')}"`,
@@ -562,7 +562,7 @@ export default function Messages() {
               )}
             </NeuCard>
           ) : (
-            filteredMessages.map((message) => (
+            filteredMessages.map((message: any) => (
               <NeuCard
                 key={message.id}
                 className="cursor-pointer hover:shadow-lg transition-all"
@@ -663,7 +663,7 @@ export default function Messages() {
                     </div>
                     <div>
                       <StudentLink
-                        studentId={messageDetail.message.studentId}
+                        studentId={parseInt(messageDetail.message.studentId) || 0}
                         studentName={messageDetail.student?.name}
                         showIcon={false}
                         context={{
@@ -772,7 +772,7 @@ export default function Messages() {
                         </p>
                       ) : (
                         <div className="space-y-4 max-h-64 overflow-y-auto">
-                          {studentConversations.slice(0, 10).map((msg) => (
+                          {studentConversations.slice(0, 10).map((msg: any) => (
                             <div
                               key={msg.id}
                               className={cn(

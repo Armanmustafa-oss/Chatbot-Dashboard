@@ -5,33 +5,51 @@
 
 export const mockAnalyticsData = {
   getDailyData: () => [
-    { date: "2024-01-01", messages: 45, students: 12, satisfaction: 4.2 },
-    { date: "2024-01-02", messages: 52, students: 15, satisfaction: 4.3 },
-    { date: "2024-01-03", messages: 48, students: 13, satisfaction: 4.1 },
-    { date: "2024-01-04", messages: 61, students: 18, satisfaction: 4.4 },
-    { date: "2024-01-05", messages: 55, students: 16, satisfaction: 4.2 },
-  ],
-
+  { 
+    date: "2024-01-01", 
+    totalMessages: 45, 
+    uniqueStudents: 12, 
+    positiveCount: 30, 
+    neutralCount: 10, 
+    negativeCount: 5,
+    avgResponseTimeMs: 1200,
+    avgRating: 4.2 
+  },
+  { 
+    date: "2024-01-02", 
+    totalMessages: 52, 
+    uniqueStudents: 15, 
+    positiveCount: 35, 
+    neutralCount: 12, 
+    negativeCount: 5,
+    avgResponseTimeMs: 1500,
+    avgRating: 4.3 
+  },
+  
+  // ... add more entries with same structure
+],
   getHourlyPeakTimes: () => [
-    { hour: "08:00", messages: 12 },
-    { hour: "09:00", messages: 28 },
-    { hour: "10:00", messages: 35 },
-    { hour: "11:00", messages: 42 },
-    { hour: "12:00", messages: 38 },
-    { hour: "13:00", messages: 25 },
-    { hour: "14:00", messages: 45 },
-    { hour: "15:00", messages: 52 },
-    { hour: "16:00", messages: 48 },
-    { hour: "17:00", messages: 32 },
-  ],
-
+  { hour: "08:00", messages: 12 },
+  { hour: "09:00", messages: 28 },
+  { hour: "10:00", messages: 35 },
+  { hour: "11:00", messages: 42 },
+  { hour: "12:00", messages: 38 },
+  { hour: "13:00", messages: 25 },
+  { hour: "14:00", messages: 45 },
+  { hour: "15:00", messages: 52 },
+  { hour: "16:00", messages: 48 },
+  { hour: "17:00", messages: 32 },
+],
   getKPISummary: () => ({
-    totalMessages: 3952,
-    totalStudents: 287,
-    avgSatisfaction: 4.2,
-    responseTime: 2.3,
-    resolutionRate: 78,
-  }),
+  totalMessages: 3952,
+  totalStudents: 287,
+  avgSatisfaction: 4.2,
+  avgResponseTime: 1800,        // Match Settings.tsx expectation
+  resolutionRate: 78,
+  positiveCount: 2530,          // Required by Settings.tsx
+  neutralCount: 1000,
+  negativeCount: 422,
+}),
 };
 
 export const mockMessagesData = {

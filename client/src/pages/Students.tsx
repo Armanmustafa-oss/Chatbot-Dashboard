@@ -53,6 +53,12 @@ import {
   XAxis,
   YAxis,
 } from "recharts";
+// ✅ CHANGES START: Removed trpc import
+// import { trpc } from "@/lib/trpc";
+// ✅ CHANGES END
+// ✅ CHANGES START: Added mock data import
+import { mockStudentsData } from "@/lib/mockData";
+// ✅ CHANGES END
 
 interface StudentWithStats {
   id: number;
@@ -71,15 +77,12 @@ interface StudentWithStats {
   negativeRate?: number;
   engagementLevel?: "high" | "moderate" | "light";
 }
-
 type DrillDownView = "none" | "totalStudents" | "totalInteractions" | "avgSatisfaction" | "avgPerStudent";
-
 export default function Students() {
   const [, navigate] = useLocation();
   const searchString = useSearch();
   const searchParams = new URLSearchParams(searchString);
   const navParams = parseNavigationParams(searchParams);
-  
   const [page, setPage] = useState(0);
   const [searchQuery, setSearchQuery] = useState("");
   const [sortBy, setSortBy] = useState<"lastActive" | "name" | "messages" | "satisfaction">("lastActive");
@@ -90,17 +93,14 @@ export default function Students() {
   const [selectedEngagementFilter, setSelectedEngagementFilter] = useState<string | null>(null);
   const [selectedSatisfactionBucket, setSelectedSatisfactionBucket] = useState<number | null>(null);
   const [selectedFrequencyBucket, setSelectedFrequencyBucket] = useState<number | null>(null);
-  
   const [dateRange, setDateRange] = useState<DateRange>({
     from: navParams.from || new Date(Date.now() - 30 * 24 * 60 * 60 * 1000),
     to: navParams.to || new Date(),
   });
   const limit = 20;
-
   // Check if navigated from another page with context
   const hasNavigationContext = navParams.source !== undefined;
   const sourcePageLabel = navParams.source === "analytics" ? "Analytics" : navParams.source === "messages" ? "Messages" : null;
-
   // Auto-open student if ID in URL
   useEffect(() => {
     if (navParams.id && !selectedStudent) {
@@ -109,26 +109,33 @@ export default function Students() {
       // We'll set this after data loads
     }
   }, [navParams.id]);
-
-  const { data: students, isLoading } = trpc.students.list.useQuery({
-    limit: 200, // Get more students for drill-down views
-    offset: 0,
-  });
-
-  // Fetch conversation history for selected student
-  const { data: conversationHistory, isLoading: isLoadingHistory } = trpc.messages.list.useQuery(
-    { limit: 100, offset: 0 },
-    { enabled: showConversationHistory && selectedStudent !== null }
-  );
+  
+  // ✅ CHANGES START: Replaced tRPC call with mock data
+  const students = mockStudentsData.list();
+  const isLoading = false;
+  
+  // Mock conversation history (no tRPC)
+  const conversationHistory = { messages: mockStudentsData.list().map(s => ({
+    id: s.id,
+    studentId: s.studentId,
+    query: "Sample question?",
+    response: "Sample response",
+    category: "General",
+    sentiment: "neutral",
+    rating: 4,
+    responseTimeMs: 1000,
+    createdAt: new Date(),
+  })) };
+  const isLoadingHistory = false;
+  // ✅ CHANGES END
 
   // Simulated student statistics with engagement levels
   const studentsWithStats: StudentWithStats[] = useMemo(() => {
     if (!students) return [];
-    return students.map((student, index) => {
+    return students.map((student: any, index) => {
       const messageCount = Math.floor(Math.random() * 50) + 1;
       const positiveRate = Math.floor(Math.random() * 40) + 40;
       const negativeRate = Math.floor(Math.random() * 20);
-      
       // Determine engagement level
       let engagementLevel: "high" | "moderate" | "light";
       if (messageCount > 10) {
@@ -138,7 +145,6 @@ export default function Students() {
       } else {
         engagementLevel = "light";
       }
-      
       return {
         ...student,
         phone: `+1 (${Math.floor(Math.random() * 900) + 100}) ${Math.floor(Math.random() * 900) + 100}-${Math.floor(Math.random() * 9000) + 1000}`,
@@ -152,7 +158,6 @@ export default function Students() {
       };
     });
   }, [students]);
-
   // Auto-select student from URL param
   useEffect(() => {
     if (navParams.id && studentsWithStats.length > 0 && !selectedStudent) {
@@ -162,34 +167,29 @@ export default function Students() {
       }
     }
   }, [navParams.id, studentsWithStats, selectedStudent]);
-
   // Filter by date range and search
   const filteredStudents = useMemo(() => {
     let result = [...studentsWithStats];
-
     // Filter by date range
-    result = result.filter((s) => {
+    result = result.filter((s: any) => {
       const lastActive = new Date(s.lastActiveAt);
       return lastActive >= dateRange.from && lastActive <= dateRange.to;
     });
-
     // Filter by search query
     if (searchQuery) {
       const query = searchQuery.toLowerCase();
       result = result.filter(
-        (s) =>
+        (s: any) =>
           s.name?.toLowerCase().includes(query) ||
           s.phone?.toLowerCase().includes(query) ||
           s.studentId.toLowerCase().includes(query) ||
           s.department?.toLowerCase().includes(query)
       );
     }
-
     // Filter by engagement level if selected
     if (selectedEngagementFilter) {
       result = result.filter(s => s.engagementLevel === selectedEngagementFilter);
     }
-
     // Filter by satisfaction bucket if selected
     if (selectedSatisfactionBucket !== null) {
       result = result.filter(s => {
@@ -197,14 +197,12 @@ export default function Students() {
         return rating === selectedSatisfactionBucket;
       });
     }
-
     // Filter by frequency bucket if selected
     if (selectedFrequencyBucket !== null) {
       result = result.filter(s => s.messageCount === selectedFrequencyBucket);
     }
-
     // Sort
-    result.sort((a, b) => {
+    result.sort((a: any, b: any) => {
       switch (sortBy) {
         case "name":
           return (a.name || "").localeCompare(b.name || "");
@@ -217,17 +215,14 @@ export default function Students() {
           return new Date(b.lastActiveAt).getTime() - new Date(a.lastActiveAt).getTime();
       }
     });
-
     return result;
   }, [studentsWithStats, searchQuery, sortBy, dateRange, selectedEngagementFilter, selectedSatisfactionBucket, selectedFrequencyBucket]);
-
   // Engagement level segmentation
   const engagementSegments = useMemo(() => {
     const high = filteredStudents.filter(s => s.engagementLevel === "high");
     const moderate = filteredStudents.filter(s => s.engagementLevel === "moderate");
     const light = filteredStudents.filter(s => s.engagementLevel === "light");
     const total = filteredStudents.length;
-    
     return [
       { 
         level: "high", 
@@ -258,11 +253,9 @@ export default function Students() {
       },
     ];
   }, [filteredStudents]);
-
   // Category breakdown for interactions
   const categoryBreakdown = useMemo(() => {
     const categories: Record<string, { count: number; avgSatisfaction: number; students: StudentWithStats[] }> = {};
-    
     filteredStudents.forEach(s => {
       const cat = s.topCategory || "Other";
       if (!categories[cat]) {
@@ -272,7 +265,6 @@ export default function Students() {
       categories[cat].avgSatisfaction += s.avgSentiment || 0;
       categories[cat].students.push(s);
     });
-    
     return Object.entries(categories).map(([name, data]) => ({
       name,
       count: data.count,
@@ -281,17 +273,14 @@ export default function Students() {
       students: data.students,
     })).sort((a, b) => b.count - a.count);
   }, [filteredStudents]);
-
   // Satisfaction distribution (1-5 stars)
   const satisfactionDistribution = useMemo(() => {
     const buckets = [0, 0, 0, 0, 0]; // 1-5 stars
-    
     filteredStudents.forEach(s => {
       const rating = Math.round((s.avgSentiment || 0) / 20); // Convert 0-100 to 1-5
       const index = Math.max(0, Math.min(4, rating - 1));
       buckets[index]++;
     });
-    
     return buckets.map((count, i) => ({
       rating: i + 1,
       count,
@@ -299,16 +288,13 @@ export default function Students() {
       color: i >= 3 ? "#22c55e" : i >= 2 ? "#eab308" : "#ef4444",
     }));
   }, [filteredStudents]);
-
   // Frequency distribution
   const frequencyDistribution = useMemo(() => {
     const buckets: Record<number, number> = {};
-    
     filteredStudents.forEach(s => {
       const count = s.messageCount || 0;
       buckets[count] = (buckets[count] || 0) + 1;
     });
-    
     // Group into ranges for display
     const ranges = [
       { label: "1 interaction", min: 1, max: 1, count: 0 },
@@ -318,16 +304,13 @@ export default function Students() {
       { label: "11-20 interactions", min: 11, max: 20, count: 0 },
       { label: "21+ interactions", min: 21, max: 999, count: 0 },
     ];
-    
     filteredStudents.forEach(s => {
       const count = s.messageCount || 0;
       const range = ranges.find(r => count >= r.min && count <= r.max);
       if (range) range.count++;
     });
-    
     return ranges;
   }, [filteredStudents]);
-
   // Summary statistics
   const summaryStats = useMemo(() => {
     const totalStudents = filteredStudents.length;
@@ -336,10 +319,8 @@ export default function Students() {
     const avgSatisfaction = totalStudents > 0
       ? Math.round(filteredStudents.reduce((sum, s) => sum + (s.avgSentiment || 0), 0) / totalStudents)
       : 0;
-
     return { totalStudents, totalMessages, avgMessages, avgSatisfaction };
   }, [filteredStudents]);
-
   // Simulated interaction history for selected student
   const studentInteractionHistory = useMemo(() => {
     if (!selectedStudent) return [];
@@ -348,7 +329,6 @@ export default function Students() {
       messages: Math.floor(Math.random() * 10) + 1,
     }));
   }, [selectedStudent]);
-
   // Sentiment breakdown for selected student
   const sentimentBreakdown = useMemo(() => {
     if (!selectedStudent) return [];
@@ -358,15 +338,13 @@ export default function Students() {
       { name: "Negative", value: selectedStudent.negativeRate || 0, color: "#ef4444" },
     ];
   }, [selectedStudent]);
-
   // Student's conversation history filtered
   const studentConversations = useMemo(() => {
     if (!conversationHistory || !selectedStudent) return [];
     return conversationHistory.messages.filter(
-      (m) => m.studentId === selectedStudent.id
+      (m: any) => m.studentId === selectedStudent.studentId
     );
   }, [conversationHistory, selectedStudent]);
-
   const formatDate = (date: Date | string) => {
     const d = new Date(date);
     return d.toLocaleDateString("en-US", {
@@ -375,7 +353,6 @@ export default function Students() {
       year: "numeric",
     });
   };
-
   const getRelativeTime = (date: Date | string) => {
     const d = new Date(date);
     const now = new Date();
@@ -386,11 +363,9 @@ export default function Students() {
     if (diffDays < 7) return `${diffDays} days ago`;
     return formatDate(date);
   };
-
   const handleExportStudent = (student: StudentWithStats) => {
     toast.success(`Exporting ${student.name || student.studentId}'s data...`);
   };
-
   const handleSendMessage = (student: StudentWithStats) => {
     if (student.phone) {
       window.open(`https://wa.me/${student.phone.replace(/\D/g, "")}`, "_blank");
@@ -398,7 +373,6 @@ export default function Students() {
       toast.error("No phone number available for this student");
     }
   };
-
   const clearAllFilters = () => {
     setSelectedEngagementFilter(null);
     setSelectedSatisfactionBucket(null);
@@ -406,9 +380,7 @@ export default function Students() {
     setDrillDownView("none");
     setExpandedSegment(null);
   };
-
   const hasActiveFilters = selectedEngagementFilter || selectedSatisfactionBucket !== null || selectedFrequencyBucket !== null;
-
   return (
     <DashboardLayout>
       <div className="space-y-6">
@@ -430,7 +402,6 @@ export default function Students() {
             </span>
           </div>
         )}
-
         {/* Header */}
         <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
           <div>
@@ -441,7 +412,6 @@ export default function Students() {
           </div>
           <DateRangePicker dateRange={dateRange} onDateRangeChange={setDateRange} />
         </div>
-
         {/* Active Filters Summary */}
         {hasActiveFilters && (
           <div className="flex items-center gap-2 flex-wrap p-3 bg-muted/50 rounded-lg">
@@ -484,7 +454,6 @@ export default function Students() {
             </Button>
           </div>
         )}
-
         {/* Metric Cards with Drill-Down */}
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
           {/* Total Students Card */}
@@ -511,7 +480,6 @@ export default function Students() {
               {drillDownView === "totalStudents" ? <ChevronUp className="h-3 w-3" /> : <ChevronDown className="h-3 w-3" />}
             </div>
           </NeuCard>
-
           {/* Total Interactions Card */}
           <NeuCard 
             className={cn(
@@ -536,7 +504,6 @@ export default function Students() {
               {drillDownView === "totalInteractions" ? <ChevronUp className="h-3 w-3" /> : <ChevronDown className="h-3 w-3" />}
             </div>
           </NeuCard>
-
           {/* Average Satisfaction Card */}
           <NeuCard 
             className={cn(
@@ -561,7 +528,6 @@ export default function Students() {
               {drillDownView === "avgSatisfaction" ? <ChevronUp className="h-3 w-3" /> : <ChevronDown className="h-3 w-3" />}
             </div>
           </NeuCard>
-
           {/* Average Per Student Card */}
           <NeuCard 
             className={cn(
@@ -587,7 +553,6 @@ export default function Students() {
             </div>
           </NeuCard>
         </div>
-
         {/* Drill-Down Views */}
         {drillDownView !== "none" && (
           <NeuCard className="animate-in slide-in-from-top-2 duration-300">
@@ -600,7 +565,6 @@ export default function Students() {
                     <X className="h-4 w-4" />
                   </Button>
                 </div>
-                
                 <div className="space-y-3">
                   {engagementSegments.map((segment) => (
                     <div key={segment.level} className="border rounded-lg overflow-hidden">
@@ -633,7 +597,6 @@ export default function Students() {
                           )}
                         </div>
                       </button>
-                      
                       {expandedSegment === segment.level && (
                         <div className="border-t bg-muted/30 p-4">
                           <div className="flex items-center justify-between mb-3">
@@ -687,7 +650,6 @@ export default function Students() {
                 </div>
               </div>
             )}
-
             {/* Total Interactions Drill-Down: Category Breakdown */}
             {drillDownView === "totalInteractions" && (
               <div className="space-y-4">
@@ -697,7 +659,6 @@ export default function Students() {
                     <X className="h-4 w-4" />
                   </Button>
                 </div>
-                
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                   {categoryBreakdown.map((cat) => (
                     <div
@@ -734,7 +695,6 @@ export default function Students() {
                 </div>
               </div>
             )}
-
             {/* Average Satisfaction Drill-Down: Distribution Histogram */}
             {drillDownView === "avgSatisfaction" && (
               <div className="space-y-4">
@@ -744,7 +704,6 @@ export default function Students() {
                     <X className="h-4 w-4" />
                   </Button>
                 </div>
-                
                 <div className="h-64">
                   <ResponsiveContainer width="100%" height="100%">
                     <BarChart data={satisfactionDistribution}>
@@ -782,7 +741,6 @@ export default function Students() {
                     </BarChart>
                   </ResponsiveContainer>
                 </div>
-                
                 <div className="grid grid-cols-2 md:grid-cols-5 gap-2">
                   {satisfactionDistribution.map((bucket) => (
                     <button
@@ -805,7 +763,6 @@ export default function Students() {
                 </div>
               </div>
             )}
-
             {/* Average Per Student Drill-Down: Frequency Distribution */}
             {drillDownView === "avgPerStudent" && (
               <div className="space-y-4">
@@ -815,7 +772,6 @@ export default function Students() {
                     <X className="h-4 w-4" />
                   </Button>
                 </div>
-                
                 <div className="h-64">
                   <ResponsiveContainer width="100%" height="100%">
                     <BarChart data={frequencyDistribution}>
@@ -840,7 +796,6 @@ export default function Students() {
                     </BarChart>
                   </ResponsiveContainer>
                 </div>
-                
                 <p className="text-sm text-muted-foreground text-center">
                   Click any bar to filter students by interaction count
                 </p>
@@ -848,7 +803,6 @@ export default function Students() {
             )}
           </NeuCard>
         )}
-
         {/* Search and Sort Controls */}
         <div className="flex flex-col sm:flex-row gap-4">
           <div className="relative flex-1">
@@ -875,13 +829,11 @@ export default function Students() {
             </select>
           </div>
         </div>
-
         {/* Results Count */}
         <p className="text-sm text-muted-foreground">
           Showing {filteredStudents.length} of {studentsWithStats.length} students
           {hasActiveFilters && " (filtered)"}
         </p>
-
         {/* Student List */}
         <div className="grid gap-4">
           {isLoading ? (
@@ -900,7 +852,7 @@ export default function Students() {
               )}
             </NeuCard>
           ) : (
-            filteredStudents.slice(page * limit, (page + 1) * limit).map((student) => (
+            filteredStudents.slice(page * limit, (page + 1) * limit).map((student: any) => (
               <NeuCard
                 key={student.id}
                 className="cursor-pointer hover:shadow-lg transition-all"
@@ -924,7 +876,6 @@ export default function Students() {
                       </div>
                     </div>
                   </div>
-                  
                   <div className="flex items-center gap-6 text-sm">
                     <div className="text-center">
                       <p className="font-bold text-lg">{student.messageCount}</p>
@@ -951,7 +902,6 @@ export default function Students() {
             ))
           )}
         </div>
-
         {/* Pagination */}
         {filteredStudents.length > limit && (
           <div className="flex items-center justify-center gap-2">
@@ -977,7 +927,6 @@ export default function Students() {
           </div>
         )}
       </div>
-
       {/* Student Detail Modal */}
       <Dialog open={selectedStudent !== null} onOpenChange={(open) => !open && setSelectedStudent(null)}>
         <DialogContent className="max-w-4xl max-h-[90vh] overflow-hidden flex flex-col">
@@ -987,7 +936,6 @@ export default function Students() {
               Complete interaction history and analytics
             </DialogDescription>
           </DialogHeader>
-          
           {selectedStudent && (
             <ScrollArea className="flex-1 pr-4">
               <div className="space-y-6">
@@ -1017,7 +965,6 @@ export default function Students() {
                     </Button>
                   </div>
                 </div>
-
                 {/* Stats Grid */}
                 <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
                   <div className="p-4 bg-muted rounded-lg text-center">
@@ -1046,7 +993,6 @@ export default function Students() {
                     <p className="text-sm text-muted-foreground mt-1">Top Category</p>
                   </div>
                 </div>
-
                 {/* Charts Row */}
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                   {/* Activity Chart */}
@@ -1063,7 +1009,6 @@ export default function Students() {
                       </ResponsiveContainer>
                     </div>
                   </NeuCard>
-
                   {/* Sentiment Breakdown */}
                   <NeuCard>
                     <h4 className="font-semibold mb-4">Sentiment Breakdown</h4>
@@ -1097,7 +1042,6 @@ export default function Students() {
                     </div>
                   </NeuCard>
                 </div>
-
                 {/* Conversation History */}
                 <NeuCard>
                   <div className="flex items-center justify-between mb-4">
@@ -1113,7 +1057,6 @@ export default function Students() {
                       {showConversationHistory ? "Hide" : "Load"} History
                     </Button>
                   </div>
-                  
                   {showConversationHistory ? (
                     isLoadingHistory ? (
                       <div className="flex items-center justify-center py-8">
@@ -1125,7 +1068,7 @@ export default function Students() {
                       </p>
                     ) : (
                       <div className="space-y-4">
-                        {studentConversations.slice(0, 10).map((msg) => (
+                        {studentConversations.slice(0, 10).map((msg: any) => (
                           <div key={msg.id} className="border rounded-lg overflow-hidden">
                             {/* Question */}
                             <div className="p-3 bg-muted/50">
@@ -1137,13 +1080,11 @@ export default function Students() {
                               </div>
                               <p className="text-sm">{msg.query}</p>
                             </div>
-                            
                             {/* Response */}
                             <div className="p-3 bg-primary/5 border-l-4 border-primary">
                               <span className="text-xs font-semibold text-muted-foreground uppercase">Bot Response</span>
                               <p className="text-sm mt-1">{msg.response}</p>
                             </div>
-                            
                             {/* Metadata */}
                             <div className="p-2 bg-muted/30 flex items-center gap-4 text-xs">
                               <CategoryLink
@@ -1168,12 +1109,11 @@ export default function Students() {
                             </div>
                           </div>
                         ))}
-                        
                         {studentConversations.length > 10 && (
                           <Button
                             variant="outline"
                             className="w-full"
-                            onClick={() => navigate(`/messages?studentId=${selectedStudent.id}`)}
+                            onClick={() => navigate(`/messages?studentId=${selectedStudent.studentId}`)}
                           >
                             View All {studentConversations.length} Conversations
                             <ExternalLink className="h-4 w-4 ml-2" />
