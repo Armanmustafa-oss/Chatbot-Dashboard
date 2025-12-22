@@ -7,6 +7,7 @@ import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
 import { useFetchData } from "@/hooks/useFetchData";
 import { Calendar, Download, Filter } from "lucide-react";
+import { useLocation } from "wouter";
 
 interface StatsData {
   data: Array<{

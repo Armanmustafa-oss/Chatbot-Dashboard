@@ -333,3 +333,11 @@ export function DashboardLayout({ children }: { children: React.ReactNode }) {
     </div>
   );
 }
+
+<Button variant="ghost" onClick={() => {
+  localStorage.removeItem('isAuthenticated');
+  localStorage.removeItem('user-session');
+  window.location.href = '/login';
+}}>
+  Logout
+</Button>

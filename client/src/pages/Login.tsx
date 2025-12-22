@@ -53,14 +53,19 @@ export default function Login() {
     } finally {
       setIsLoading(false);
     }
+
+    // After successful login
+    localStorage.setItem('isAuthenticated', 'true');
+    localStorage.setItem('user-session', JSON.stringify({ name: 'Admin User', email: 'admin@example.com' }));
+    window.location.href = '/'; // Redirect to dashboard
   };
 
-  const handleLogout = () => {
-    localStorage.removeItem('isAuthenticated');
-    localStorage.removeItem('user');
-    setUsername('admin');
-    setPassword('password123');
-  };
+  // const handleLogout = () => {
+  //   localStorage.removeItem('isAuthenticated');
+  //   localStorage.removeItem('user');
+  //   setUsername('admin');
+  //   setPassword('password123');
+  // };
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-slate-900 via-slate-800 to-slate-900 flex items-center justify-center p-4">
