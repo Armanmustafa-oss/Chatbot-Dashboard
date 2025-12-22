@@ -81,6 +81,7 @@ import {
   YAxis,
 } from "recharts";
 import { mockAnalyticsData, mockMessagesData, mockStudentsData } from "@/lib/mockData";
+import { DashboardLayout } from "@/components/DashboardLayout";
 
 // Types for drill-down data
 interface MessageRow {
@@ -555,6 +556,6 @@ export default function Analytics() {
           </ScrollArea>
         </NeuCard>
       </div>
-    </div>
+    </DashboardLayout>
   );
 }
