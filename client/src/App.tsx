@@ -1,92 +1,79 @@
-import { Toaster } from "@/components/ui/sonner";
+import { Toaster } from "sonner";
 import { TooltipProvider } from "@/components/ui/tooltip";
-import { ThemeProvider } from "@/contexts/ThemeContext";
+import NotFound from "@/pages/NotFound";
 import { Route, Switch, useLocation } from "wouter";
-import { DashboardLayout } from "./components/DashboardLayout";
+import ErrorBoundary from "./components/ErrorBoundary";
+import { ThemeProvider } from "./contexts/ThemeContext";
 import Home from "./pages/Home";
-import Login from "./pages/Login";
+import Analytics from "./pages/Analytics";
 import Messages from "./pages/Messages";
 import Students from "./pages/Students";
-import ROI from "./pages/ROI";
 import Settings from "./pages/Settings";
-import Analytics from "./pages/Analytics";
-import { useEffect } from "react";
+import ROI from "./pages/ROI";
+import Login from "./pages/Login";
+import { useEffect, useState } from "react";
 
-export default function App() {
+function Router() {
+  const [location, navigate] = useLocation();
+  const [isAuthenticated, setIsAuthenticated] = useState(false);
+  const [isLoading, setIsLoading] = useState(true);
+
+  // Check authentication on mount and when location changes
+  useEffect(() => {
+    const auth = localStorage.getItem('isAuthenticated') === 'true';
+    setIsAuthenticated(auth);
+    setIsLoading(false);
+
+    // If not authenticated and not on login page, redirect to login
+    if (!auth && location !== '/login') {
+      navigate('/login');
+    }
+  }, [location, navigate]);
+
+  if (isLoading) {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-slate-900">
+        <div className="text-center">
+          <div className="w-12 h-12 border-4 border-blue-500 border-t-transparent rounded-full animate-spin mx-auto mb-4"></div>
+          <p className="text-slate-400">Loading...</p>
+        </div>
+      </div>
+    );
+  }
+
   return (
-    <ThemeProvider defaultTheme="dark">
-      <TooltipProvider>
-        <Toaster />
-        <Switch>
-          {/* Public route */}
-          <Route path="/login" component={Login} />
-          
-          {/* Protected routes with DashboardLayout */}
-          <Route path="/">
-            {() => (
-              <DashboardLayout>
-                <Home />
-              </DashboardLayout>
-            )}
-          </Route>
-          
-          <Route path="/messages">
-            {() => (
-              <DashboardLayout>
-                <Messages />
-              </DashboardLayout>
-            )}
-          </Route>
-          
-          <Route path="/students">
-            {() => (
-              <DashboardLayout>
-                <Students />
-              </DashboardLayout>
-            )}
-          </Route>
-          
-          <Route path="/roi">
-            {() => (
-              <DashboardLayout>
-                <ROI />
-              </DashboardLayout>
-            )}
-          </Route>
-          
-          <Route path="/settings">
-            {() => (
-              <DashboardLayout>
-                <Settings />
-              </DashboardLayout>
-            )}
-          </Route>
-          
-          <Route path="/analytics">
-            {() => (
-              <DashboardLayout>
-                <Analytics />
-              </DashboardLayout>
-            )}
-          </Route>
-          
-          {/* 404 */}
-          <Route>
-            <div className="min-h-screen flex items-center justify-center">
-              <div className="text-center">
-                <h1 className="text-2xl font-bold">404 - Page Not Found</h1>
-                <p className="text-muted-foreground">The page you're looking for doesn't exist.</p>
-                <button 
-                  onClick={() => window.location.href = '/'}
-                  className="mt-4 text-primary hover:underline"
-                >
-                  Go Home
-                </button>
-              </div>
-            </div>
-          </Route>
-        </Switch>
-      </TooltipProvider>
-    </ThemeProvider>
+    <Switch>
+      <Route path="/login" component={Login} />
+      
+      {isAuthenticated ? (
+        <>
+          <Route path="/" component={Home} />
+          <Route path="/analytics" component={Analytics} />
+          <Route path="/roi" component={ROI} />
+          <Route path="/messages" component={Messages} />
+          <Route path="/students" component={Students} />
+          <Route path="/settings" component={Settings} />
+        </>
+      ) : (
+        <Route path="*" component={Login} />
+      )}
+      
+      <Route component={NotFound} />
+    </Switch>
   );
 }
+
+function App() {
+  return (
+    <ErrorBoundary>
+      <ThemeProvider defaultTheme="light" switchable>
+        <TooltipProvider>
+          <Toaster />
+          <Router />
+        </TooltipProvider>
+      </ThemeProvider>
+    </ErrorBoundary>
+  );
+}
+
+export default App;

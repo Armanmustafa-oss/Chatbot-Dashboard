@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useLocation } from 'wouter';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -18,6 +18,14 @@ export default function Login() {
   const [password, setPassword] = useState('password123');
   const [isLoading, setIsLoading] = useState(false);
 
+  // Check if already logged in
+  useEffect(() => {
+    const isAuthenticated = localStorage.getItem('isAuthenticated') === 'true';
+    if (isAuthenticated) {
+      navigate('/');
+    }
+  }, [navigate]);
+
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
     setIsLoading(true);
@@ -26,6 +34,7 @@ export default function Login() {
       // Validate credentials against demo accounts
       if (!username || !password) {
         toast.error('Username and password are required');
+        setIsLoading(false);
         return;
       }
 
@@ -33,6 +42,7 @@ export default function Login() {
       const validPassword = DEMO_CREDENTIALS[username as keyof typeof DEMO_CREDENTIALS];
       if (!validPassword || validPassword !== password) {
         toast.error('Invalid username or password');
+        setIsLoading(false);
         return;
       }
 
@@ -47,25 +57,14 @@ export default function Login() {
       toast.success('Signed in successfully!');
       
       // Redirect to dashboard
-      navigate('/');
+      setTimeout(() => {
+        navigate('/');
+      }, 500);
     } catch (error: any) {
       toast.error(error.message || 'Authentication failed');
-    } finally {
       setIsLoading(false);
     }
-
-    // After successful login
-    localStorage.setItem('isAuthenticated', 'true');
-    localStorage.setItem('user-session', JSON.stringify({ name: 'Admin User', email: 'admin@example.com' }));
-    window.location.href = '/'; // Redirect to dashboard
   };
-
-  // const handleLogout = () => {
-  //   localStorage.removeItem('isAuthenticated');
-  //   localStorage.removeItem('user');
-  //   setUsername('admin');
-  //   setPassword('password123');
-  // };
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-slate-900 via-slate-800 to-slate-900 flex items-center justify-center p-4">
