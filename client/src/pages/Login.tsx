@@ -1,156 +1,120 @@
-import { useState, useEffect } from 'react';
-import { useLocation } from 'wouter';
-import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
-import { Card } from '@/components/ui/card';
-import { toast } from 'sonner';
+import { useState, useEffect } from "react";
+import { useLocation } from "wouter";
+import { Mail, Lock, LogIn } from "lucide-react";
 
-// Demo credentials - hardcoded for static auth
-const DEMO_CREDENTIALS = {
-  admin: 'password123',
-  demo: 'demo123456',
-  test: 'test123456',
-};
+const DEMO_CREDENTIALS = [
+  { username: "admin", password: "password123" },
+  { username: "demo", password: "demo123456" },
+  { username: "test", password: "test123456" },
+];
 
 export default function Login() {
-  const [, navigate] = useLocation();
-  const [username, setUsername] = useState('admin');
-  const [password, setPassword] = useState('password123');
-  const [isLoading, setIsLoading] = useState(false);
+  const [, setLocation] = useLocation();
+  const [username, setUsername] = useState("");
+  const [password, setPassword] = useState("");
+  const [error, setError] = useState("");
+  const [loading, setLoading] = useState(false);
 
-  // Check if already logged in
   useEffect(() => {
-    const isAuthenticated = localStorage.getItem('isAuthenticated') === 'true';
+    const isAuthenticated = localStorage.getItem("isAuthenticated") === "true";
     if (isAuthenticated) {
-      navigate('/');
+      setLocation("/");
     }
-  }, [navigate]);
+  }, [setLocation]);
 
-  const handleLogin = async (e: React.FormEvent) => {
+  const handleLogin = (e: React.FormEvent) => {
     e.preventDefault();
-    setIsLoading(true);
+    setError("");
+    setLoading(true);
 
-    try {
-      // Validate credentials against demo accounts
-      if (!username || !password) {
-        toast.error('Username and password are required');
-        setIsLoading(false);
-        return;
+    setTimeout(() => {
+      const isValid = DEMO_CREDENTIALS.some(
+        (cred) => cred.username === username && cred.password === password
+      );
+
+      if (isValid) {
+        localStorage.setItem("isAuthenticated", "true");
+        localStorage.setItem("user", JSON.stringify({ username, role: "admin" }));
+        setLocation("/");
+      } else {
+        setError("Invalid username or password");
       }
-
-      // Check if credentials match any demo account
-      const validPassword = DEMO_CREDENTIALS[username as keyof typeof DEMO_CREDENTIALS];
-      if (!validPassword || validPassword !== password) {
-        toast.error('Invalid username or password');
-        setIsLoading(false);
-        return;
-      }
-
-      // Store authentication in localStorage
-      localStorage.setItem('isAuthenticated', 'true');
-      localStorage.setItem('user', JSON.stringify({
-        username,
-        email: `${username}@example.com`,
-        name: username.charAt(0).toUpperCase() + username.slice(1),
-      }));
-
-      toast.success('Signed in successfully!');
-      
-      // Redirect to dashboard
-      setTimeout(() => {
-        navigate('/');
-      }, 500);
-    } catch (error: any) {
-      toast.error(error.message || 'Authentication failed');
-      setIsLoading(false);
-    }
+      setLoading(false);
+    }, 500);
   };
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-slate-900 via-slate-800 to-slate-900 flex items-center justify-center p-4">
-      <Card className="w-full max-w-md p-8 bg-slate-800 border-slate-700">
-        <div className="mb-8">
-          <h1 className="text-3xl font-bold text-white mb-2">
-            Sign In
-          </h1>
-          <p className="text-slate-400">
-            Sign in to your account to continue
-          </p>
+    <div className="flex min-h-screen items-center justify-center bg-gradient-to-br from-blue-50 to-indigo-100">
+      <div className="w-full max-w-md rounded-2xl bg-white p-8 shadow-xl">
+        {/* Logo */}
+        <div className="mb-8 flex justify-center">
+          <div className="flex h-16 w-16 items-center justify-center rounded-full bg-gradient-to-br from-blue-500 to-blue-600">
+            <span className="text-2xl font-bold text-white">E</span>
+          </div>
         </div>
 
+        {/* Title */}
+        <h1 className="mb-2 text-center text-2xl font-bold text-gray-900">Welcome to EduBot</h1>
+        <p className="mb-8 text-center text-sm text-gray-600">Sign in to access your dashboard</p>
+
+        {/* Form */}
         <form onSubmit={handleLogin} className="space-y-4">
+          {/* Username */}
           <div>
-            <label className="block text-sm font-medium text-slate-300 mb-2">
-              Username
-            </label>
-            <Input
-              type="text"
-              value={username}
-              onChange={(e) => setUsername(e.target.value)}
-              placeholder="Enter your username"
-              disabled={isLoading}
-              className="bg-slate-700 border-slate-600 text-white placeholder:text-slate-500"
-              required
-            />
+            <label className="block text-sm font-medium text-gray-700 mb-2">Username</label>
+            <div className="relative">
+              <Mail className="absolute left-3 top-3 text-gray-400" size={20} />
+              <input
+                type="text"
+                value={username}
+                onChange={(e) => setUsername(e.target.value)}
+                placeholder="Enter your username"
+                className="w-full rounded-lg border border-gray-300 bg-gray-50 py-2 pl-10 pr-4 text-gray-900 placeholder-gray-500 focus:border-blue-500 focus:bg-white focus:outline-none focus:ring-2 focus:ring-blue-200"
+              />
+            </div>
           </div>
 
+          {/* Password */}
           <div>
-            <label className="block text-sm font-medium text-slate-300 mb-2">
-              Password
-            </label>
-            <Input
-              type="password"
-              value={password}
-              onChange={(e) => setPassword(e.target.value)}
-              placeholder="Enter your password"
-              disabled={isLoading}
-              className="bg-slate-700 border-slate-600 text-white placeholder:text-slate-500"
-              required
-            />
+            <label className="block text-sm font-medium text-gray-700 mb-2">Password</label>
+            <div className="relative">
+              <Lock className="absolute left-3 top-3 text-gray-400" size={20} />
+              <input
+                type="password"
+                value={password}
+                onChange={(e) => setPassword(e.target.value)}
+                placeholder="Enter your password"
+                className="w-full rounded-lg border border-gray-300 bg-gray-50 py-2 pl-10 pr-4 text-gray-900 placeholder-gray-500 focus:border-blue-500 focus:bg-white focus:outline-none focus:ring-2 focus:ring-blue-200"
+              />
+            </div>
           </div>
 
-          <Button
+          {/* Error */}
+          {error && <div className="rounded-lg bg-red-50 p-3 text-sm text-red-600">{error}</div>}
+
+          {/* Submit Button */}
+          <button
             type="submit"
-            disabled={isLoading}
-            className="w-full bg-blue-600 hover:bg-blue-700 text-white font-semibold py-2"
+            disabled={loading}
+            className="btn-primary w-full gap-2"
           >
-            {isLoading ? 'Signing in...' : 'Sign In'}
-          </Button>
+            <LogIn size={20} />
+            {loading ? "Signing in..." : "Sign In"}
+          </button>
         </form>
 
-        <div className="mt-8 p-4 bg-slate-700/50 rounded-lg border border-slate-600">
-          <p className="text-xs text-slate-300 mb-3 font-semibold">
-            📝 Demo Credentials:
-          </p>
-          <div className="space-y-2 text-xs text-slate-400">
-            <div>
-              <strong className="text-slate-300">Account 1:</strong>
-              <br />
-              Username: <code className="text-blue-300">admin</code>
-              <br />
-              Password: <code className="text-blue-300">password123</code>
+        {/* Demo Credentials */}
+        <div className="mt-8 space-y-3 border-t border-gray-200 pt-8">
+          <p className="text-center text-sm font-medium text-gray-700">Demo Credentials</p>
+          {DEMO_CREDENTIALS.map((cred, index) => (
+            <div key={index} className="rounded-lg bg-gray-50 p-3">
+              <p className="text-xs font-medium text-gray-600">Account {index + 1}</p>
+              <p className="text-xs text-gray-500">Username: {cred.username}</p>
+              <p className="text-xs text-gray-500">Password: {cred.password}</p>
             </div>
-            <div className="pt-2 border-t border-slate-600">
-              <strong className="text-slate-300">Account 2:</strong>
-              <br />
-              Username: <code className="text-blue-300">demo</code>
-              <br />
-              Password: <code className="text-blue-300">demo123456</code>
-            </div>
-            <div className="pt-2 border-t border-slate-600">
-              <strong className="text-slate-300">Account 3:</strong>
-              <br />
-              Username: <code className="text-blue-300">test</code>
-              <br />
-              Password: <code className="text-blue-300">test123456</code>
-            </div>
-          </div>
+          ))}
         </div>
-
-        <p className="text-center text-xs text-slate-500 mt-6">
-          This is a demo login. No server required.
-        </p>
-      </Card>
+      </div>
     </div>
   );
 }
