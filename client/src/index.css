@@ -1,4 +1,4 @@
-@import "tw-animate-css";
+@import "tailwindcss";
 
 @custom-variant dark (&:is(.dark *));
 
@@ -148,15 +148,11 @@ html {
   }
 
   .sidebar-item.active {
-    @apply bg-sidebar-primary text-sidebar-primary-foreground;
-  }
-
-  .main-content {
-    @apply ml-64 min-h-screen bg-background;
+    @apply bg-sidebar-primary text-sidebar-primary-foreground font-semibold;
   }
 
   .page-header {
-    @apply border-b border-border bg-card px-8 py-6 shadow-sm;
+    @apply mb-8 flex items-center justify-between;
   }
 
   .page-title {
@@ -168,30 +164,18 @@ html {
   }
 
   .page-content {
-    @apply p-8;
+    @apply space-y-8;
   }
-}
 
-@layer utilities {
-  .text-xs {
-    @apply text-xs;
+  .main-content {
+    @apply flex-1 ml-64 bg-background;
   }
-  .text-sm {
-    @apply text-sm;
+
+  .neu-flat {
+    @apply rounded-lg border border-border bg-card p-4 shadow-sm;
   }
-  .text-base {
-    @apply text-base;
-  }
-  .text-lg {
-    @apply text-lg;
-  }
-  .text-xl {
-    @apply text-xl;
-  }
-  .text-2xl {
-    @apply text-2xl;
-  }
-  .text-3xl {
-    @apply text-3xl;
+
+  .neu-pressed {
+    @apply rounded-lg border border-border bg-card p-4 shadow-md;
   }
 }
