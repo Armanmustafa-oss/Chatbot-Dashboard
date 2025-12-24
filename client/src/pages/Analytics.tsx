@@ -318,8 +318,8 @@ export default function Analytics() {
   const isLoading = isLoadingDaily || isLoadingHourly || isLoadingKPI || isLoadingMessages || isLoadingStudents;
 
   return (
-    <div className="min-h-screen bg-gradient-to-b from-slate-900 via-slate-800 to-slate-900 p-4 md:p-8">
-      <div className="max-w-7xl mx-auto space-y-6">
+    <DashboardLayout>
+      <div className="space-y-6">
         {/* Header */}
         <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
           <div>
