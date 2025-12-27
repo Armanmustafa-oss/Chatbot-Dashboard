@@ -1,45 +1,9 @@
 @import "tw-animate-css";
 
-@custom-variant dark (&:is(.dark *));
-
-@theme inline {
-  --radius-sm: 4px;
-  --radius-md: 6px;
-  --radius-lg: 8px;
-  --radius-xl: 12px;
-  --color-background: #ffffff;
-  --color-foreground: #1a1a1a;
-  --color-card: #f8f9fa;
-  --color-card-foreground: #1a1a1a;
-  --color-popover: #ffffff;
-  --color-popover-foreground: #1a1a1a;
-  --color-primary: #2563eb;
-  --color-primary-foreground: #ffffff;
-  --color-secondary: #f3f4f6;
-  --color-secondary-foreground: #374151;
-  --color-muted: #e5e7eb;
-  --color-muted-foreground: #6b7280;
-  --color-accent: #3b82f6;
-  --color-accent-foreground: #ffffff;
-  --color-destructive: #ef4444;
-  --color-destructive-foreground: #ffffff;
-  --color-border: #e5e7eb;
-  --color-input: #f3f4f6;
-  --color-ring: #3b82f6;
-  --color-chart-1: #3b82f6;
-  --color-chart-2: #10b981;
-  --color-chart-3: #f59e0b;
-  --color-chart-4: #ef4444;
-  --color-chart-5: #8b5cf6;
-  --color-sidebar: #1e40af;
-  --color-sidebar-foreground: #ffffff;
-  --color-sidebar-primary: #3b82f6;
-  --color-sidebar-primary-foreground: #ffffff;
-  --color-sidebar-accent: #60a5fa;
-  --color-sidebar-accent-foreground: #ffffff;
-  --color-sidebar-border: #1e3a8a;
-  --color-sidebar-ring: #60a5fa;
-}
+/* ✅ RESTORED: Essential Tailwind directives */
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
 
 :root {
   --background: #ffffff;
@@ -169,29 +133,5 @@ html {
 
   .page-content {
     @apply p-8;
-  }
-}
-
-@layer utilities {
-  .text-xs {
-    @apply text-xs;
-  }
-  .text-sm {
-    @apply text-sm;
-  }
-  .text-base {
-    @apply text-base;
-  }
-  .text-lg {
-    @apply text-lg;
-  }
-  .text-xl {
-    @apply text-xl;
-  }
-  .text-2xl {
-    @apply text-2xl;
-  }
-  .text-3xl {
-    @apply text-3xl;
   }
 }
