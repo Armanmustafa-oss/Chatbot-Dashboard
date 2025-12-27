@@ -1,86 +1,121 @@
-@import "tw-animate-css";
+@import "tailwindcss";
 
+<<<<<<< HEAD
 /* ✅ RESTORED: Essential Tailwind directives */
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
-
-:root {
-  --background: #ffffff;
-  --foreground: #1a1a1a;
-  --card: #f8f9fa;
-  --card-foreground: #1a1a1a;
-  --popover: #ffffff;
-  --popover-foreground: #1a1a1a;
-  --primary: #2563eb;
-  --primary-foreground: #ffffff;
-  --secondary: #f3f4f6;
-  --secondary-foreground: #374151;
-  --muted: #e5e7eb;
-  --muted-foreground: #6b7280;
-  --accent: #3b82f6;
-  --accent-foreground: #ffffff;
-  --destructive: #ef4444;
-  --destructive-foreground: #ffffff;
-  --border: #e5e7eb;
-  --input: #f3f4f6;
-  --ring: #3b82f6;
-  --chart-1: #3b82f6;
-  --chart-2: #10b981;
-  --chart-3: #f59e0b;
-  --chart-4: #ef4444;
-  --chart-5: #8b5cf6;
-  --sidebar: #1e40af;
-  --sidebar-foreground: #ffffff;
-  --sidebar-primary: #3b82f6;
-  --sidebar-primary-foreground: #ffffff;
-  --sidebar-accent: #60a5fa;
-  --sidebar-accent-foreground: #ffffff;
-  --sidebar-border: #1e3a8a;
-  --sidebar-ring: #60a5fa;
+=======
+@theme {
+  --radius-sm: 4px;
+  --radius-md: 6px;
+  --radius-lg: 8px;
+  --radius-xl: 12px;
+  --color-background: #ffffff;
+  --color-foreground: #1a1a1a;
+  --color-card: #f8f9fa;
+  --color-card-foreground: #1a1a1a;
+  --color-popover: #ffffff;
+  --color-popover-foreground: #1a1a1a;
+  --color-primary: #2563eb;
+  --color-primary-foreground: #ffffff;
+  --color-secondary: #f3f4f6;
+  --color-secondary-foreground: #374151;
+  --color-muted: #e5e7eb;
+  --color-muted-foreground: #6b7280;
+  --color-accent: #3b82f6;
+  --color-accent-foreground: #ffffff;
+  --color-destructive: #ef4444;
+  --color-destructive-foreground: #ffffff;
+  --color-border: #e5e7eb;
+  --color-input: #f3f4f6;
+  --color-ring: #3b82f6;
+  --color-chart-1: #3b82f6;
+  --color-chart-2: #10b981;
+  --color-chart-3: #f59e0b;
+  --color-chart-4: #ef4444;
+  --color-chart-5: #8b5cf6;
+  --color-sidebar: #1e40af;
+  --color-sidebar-foreground: #ffffff;
+  --color-sidebar-primary: #3b82f6;
+  --color-sidebar-primary-foreground: #ffffff;
+  --color-sidebar-accent: #60a5fa;
+  --color-sidebar-accent-foreground: #ffffff;
+  --color-sidebar-border: #1e3a8a;
+  --color-sidebar-ring: #60a5fa;
 }
-
-* {
-  @apply border-border;
-}
-
-body {
-  @apply bg-background text-foreground;
-  font-family: "Nunito", sans-serif;
-}
-
-html {
-  scroll-behavior: smooth;
-}
+>>>>>>> b3fe5f9bd6705aa8c3c6ddb2b0213e123cb0cc0e
 
 @layer base {
+  body {
+    @apply bg-background text-foreground;
+    font-family: "Nunito", sans-serif;
+  }
+
+  html {
+    scroll-behavior: smooth;
+  }
+
   h1 {
     @apply text-3xl font-bold tracking-tight;
   }
+
   h2 {
     @apply text-2xl font-bold tracking-tight;
   }
+
   h3 {
     @apply text-xl font-bold tracking-tight;
   }
+
   h4 {
     @apply text-lg font-bold;
   }
+
   h5 {
     @apply text-base font-bold;
   }
+
   h6 {
     @apply text-sm font-bold;
   }
 }
 
 @layer components {
-  .container {
-    @apply mx-auto max-w-7xl px-4;
+  .sidebar {
+    @apply fixed left-0 top-0 h-screen w-64 bg-sidebar text-sidebar-foreground shadow-lg;
   }
 
-  .flex {
-    @apply flex min-h-0 min-w-0;
+  .sidebar-nav {
+    @apply flex flex-col gap-2 p-4;
+  }
+
+  .sidebar-item {
+    @apply flex items-center gap-3 rounded-lg px-4 py-3 text-sidebar-foreground transition-colors hover:bg-sidebar-accent hover:text-sidebar-accent-foreground;
+  }
+
+  .sidebar-item.active {
+    @apply bg-sidebar-primary text-sidebar-primary-foreground font-semibold;
+  }
+
+  .page-header {
+    @apply mb-8 flex items-center justify-between;
+  }
+
+  .page-title {
+    @apply text-3xl font-bold text-foreground;
+  }
+
+  .page-subtitle {
+    @apply text-sm text-muted-foreground;
+  }
+
+  .page-content {
+    @apply space-y-8;
+  }
+
+  .main-content {
+    @apply flex-1 ml-64 bg-background;
   }
 
   .kpi-card {
@@ -99,10 +134,11 @@ html {
     @apply inline-flex items-center justify-center rounded-lg border border-border bg-secondary px-4 py-2 font-medium text-secondary-foreground transition-colors hover:bg-gray-200 focus:outline-none focus:ring-2 focus:ring-ring;
   }
 
-  .sidebar {
-    @apply fixed left-0 top-0 h-screen w-64 bg-sidebar text-sidebar-foreground shadow-lg;
+  .neu-flat {
+    @apply rounded-lg border border-border bg-card p-4 shadow-sm;
   }
 
+<<<<<<< HEAD
   .sidebar-nav {
     @apply flex flex-col gap-2 p-4;
   }
@@ -133,5 +169,9 @@ html {
 
   .page-content {
     @apply p-8;
+=======
+  .neu-pressed {
+    @apply rounded-lg border border-border bg-card p-4 shadow-md;
+>>>>>>> b3fe5f9bd6705aa8c3c6ddb2b0213e123cb0cc0e
   }
 }

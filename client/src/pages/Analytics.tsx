@@ -319,6 +319,7 @@ export default function Analytics() {
 
   return (
     <DashboardLayout>
+<<<<<<< HEAD
       <div className="min-h-screen bg-gradient-to-b from-slate-900 via-slate-800 to-slate-900 p-4 md:p-8">
         <div className="max-w-7xl mx-auto space-y-6">
           {/* Header */}
@@ -333,6 +334,46 @@ export default function Analytics() {
                   <Button variant="outline" className="w-full sm:w-auto">
                     <CalendarIcon className="mr-2 h-4 w-4" />
                     {format(dateRange.from, "MMM d")} - {format(dateRange.to, "MMM d")}
+=======
+      <div className="space-y-6">
+        {/* Header */}
+        <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
+          <div>
+            <h1 className="text-3xl md:text-4xl font-bold text-white mb-2">Analytics Dashboard</h1>
+            <p className="text-slate-400">Track student queries, satisfaction rates, and system performance</p>
+          </div>
+          <div className="flex flex-col sm:flex-row gap-2">
+            <Popover open={isDatePickerOpen} onOpenChange={setIsDatePickerOpen}>
+              <PopoverTrigger asChild>
+                <Button variant="outline" className="w-full sm:w-auto">
+                  <CalendarIcon className="mr-2 h-4 w-4" />
+                  {format(dateRange.from, "MMM d")} - {format(dateRange.to, "MMM d")}
+                </Button>
+              </PopoverTrigger>
+              <PopoverContent className="w-auto p-4" align="end">
+                <div className="space-y-4">
+                  <div>
+                    <p className="text-sm font-medium mb-2">Start Date</p>
+                    <Calendar
+                      mode="single"
+                      selected={tempStartDate}
+                      onSelect={setTempStartDate}
+                      disabled={(date) => date > (tempEndDate || new Date())}
+                    />
+                  </div>
+                  <Separator />
+                  <div>
+                    <p className="text-sm font-medium mb-2">End Date</p>
+                    <Calendar
+                      mode="single"
+                      selected={tempEndDate}
+                      onSelect={setTempEndDate}
+                      disabled={(date) => date < (tempStartDate || new Date())}
+                    />
+                  </div>
+                  <Button onClick={handleDateRangeChange} className="w-full">
+                    Apply
+>>>>>>> b3fe5f9bd6705aa8c3c6ddb2b0213e123cb0cc0e
                   </Button>
                 </PopoverTrigger>
                 <PopoverContent className="w-auto p-4" align="end">
