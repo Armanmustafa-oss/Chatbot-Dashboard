@@ -483,7 +483,26 @@ export default function Settings() {
             <div className="space-y-3">
               {scheduledReports && scheduledReports.length > 0 ? (
                 (scheduledReports || []).map((report: any) => {
-                  const recipients = JSON.parse(report.recipients || "[]");
+                  const rawRecipients = report.recipients ?? "";
+                  let recipients: string[] = [];
+                  try {
+                    if (!rawRecipients) {
+                      recipients = [];
+                    } else if (Array.isArray(rawRecipients)) {
+                      recipients = rawRecipients;
+                    } else if (typeof rawRecipients === "string") {
+                      const trimmed = rawRecipients.trim();
+                      if (trimmed.startsWith("[")) {
+                        recipients = JSON.parse(trimmed);
+                      } else {
+                        recipients = trimmed.split(",").map((s) => s.trim()).filter(Boolean);
+                      }
+                    } else {
+                      recipients = [];
+                    }
+                  } catch (e) {
+                    recipients = [];
+                  }
                   return (
                     <div
                       key={report.id}

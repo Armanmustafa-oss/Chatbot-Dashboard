@@ -127,9 +127,9 @@ function Calendar({
           return (
             <div
               data-slot="calendar"
-              ref={rootRef}
+              ref={rootRef as any}
               className={cn(className)}
-              {...props}
+              {...(props as any)}
             />
           );
         },
@@ -185,7 +185,7 @@ function CalendarDayButton({
 
   return (
     <Button
-      ref={ref}
+      ref={ref as any}
       variant="ghost"
       size="icon"
       data-day={day.date.toLocaleDateString()}

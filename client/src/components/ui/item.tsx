@@ -59,14 +59,14 @@ function Item({
   ...props
 }: React.ComponentProps<"div"> &
   VariantProps<typeof itemVariants> & { asChild?: boolean }) {
-  const Comp = asChild ? Slot : "div";
+  const Comp: any = asChild ? Slot : "div";
   return (
     <Comp
       data-slot="item"
       data-variant={variant}
       data-size={size}
       className={cn(itemVariants({ variant, size, className }))}
-      {...props}
+      {...(props as any)}
     />
   );
 }
