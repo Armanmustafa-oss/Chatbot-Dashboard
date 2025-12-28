@@ -1,11 +1,10 @@
 @import "tailwindcss";
 
-<<<<<<< HEAD
 /* ✅ RESTORED: Essential Tailwind directives */
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
-=======
+
 @theme {
   --radius-sm: 4px;
   --radius-md: 6px;
@@ -44,7 +43,6 @@
   --color-sidebar-border: #1e3a8a;
   --color-sidebar-ring: #60a5fa;
 }
->>>>>>> b3fe5f9bd6705aa8c3c6ddb2b0213e123cb0cc0e
 
 @layer base {
   body {
@@ -99,7 +97,7 @@
   }
 
   .page-header {
-    @apply mb-8 flex items-center justify-between;
+    @apply mb-8 flex items-center justify-between border-b border-border bg-card px-8 py-6 shadow-sm;
   }
 
   .page-title {
@@ -111,11 +109,11 @@
   }
 
   .page-content {
-    @apply space-y-8;
+    @apply space-y-8 p-8;
   }
 
   .main-content {
-    @apply flex-1 ml-64 bg-background;
+    @apply flex-1 ml-64 min-h-screen bg-background;
   }
 
   .kpi-card {
@@ -138,40 +136,7 @@
     @apply rounded-lg border border-border bg-card p-4 shadow-sm;
   }
 
-<<<<<<< HEAD
-  .sidebar-nav {
-    @apply flex flex-col gap-2 p-4;
-  }
-
-  .sidebar-item {
-    @apply flex items-center gap-3 rounded-lg px-4 py-3 text-sidebar-foreground transition-colors hover:bg-sidebar-accent hover:text-sidebar-accent-foreground;
-  }
-
-  .sidebar-item.active {
-    @apply bg-sidebar-primary text-sidebar-primary-foreground;
-  }
-
-  .main-content {
-    @apply ml-64 min-h-screen bg-background;
-  }
-
-  .page-header {
-    @apply border-b border-border bg-card px-8 py-6 shadow-sm;
-  }
-
-  .page-title {
-    @apply text-3xl font-bold text-foreground;
-  }
-
-  .page-subtitle {
-    @apply text-sm text-muted-foreground;
-  }
-
-  .page-content {
-    @apply p-8;
-=======
   .neu-pressed {
     @apply rounded-lg border border-border bg-card p-4 shadow-md;
->>>>>>> b3fe5f9bd6705aa8c3c6ddb2b0213e123cb0cc0e
   }
 }
